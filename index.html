@@ -14,6 +14,7 @@
       --status-urlaub-pm: #9fe3b0;
       --status-krank: #ff9b9b;
       --status-schulung: #9fb7ff;
+      --status-einsatz: #ffd18a;
       --school-holiday: #e5e5e5;
       --hover-highlight: #4b4f55;
       --today-highlight: #1b1b1b;
@@ -58,6 +59,7 @@
       border-collapse: collapse;
       width: 100%;
       table-layout: fixed;
+      user-select: none;
     }
 
     th,
@@ -163,18 +165,36 @@
       background: var(--status-schulung);
     }
 
+    .status-einsatz {
+      background: var(--status-einsatz);
+    }
+
     .legend {
       margin-top: 12px;
       display: flex;
-      gap: 16px;
+      gap: 20px;
       flex-wrap: wrap;
       font-size: 12px;
+      align-items: center;
     }
 
     .legend-item {
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+
+    .legend-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .legend-divider {
+      width: 1px;
+      height: 20px;
+      background: #c7c7c7;
     }
 
     .row-highlight td,
@@ -194,6 +214,10 @@
     .row-highlight .today-col {
       box-shadow: inset 0 0 0 2px var(--today-highlight);
     }
+
+    .cell-selected {
+      box-shadow: inset 0 0 0 2px #1d6fa5;
+    }
   </style>
 </head>
 <body>
@@ -202,14 +226,20 @@
   <div id="calendar-container"></div>
 
   <div class="legend">
-    <div class="legend-item"><span class="color-dot weekend"></span> Wochenende</div>
-    <div class="legend-item"><span class="color-dot holiday"></span> Feiertag</div>
-    <div class="legend-item"><span class="color-dot status-urlaub"></span> Urlaub</div>
-    <div class="legend-item"><span class="color-dot status-urlaub-am"></span> Urlaub vormittags</div>
-    <div class="legend-item"><span class="color-dot status-urlaub-pm"></span> Urlaub nachmittags</div>
-    <div class="legend-item"><span class="color-dot status-krank"></span> krank</div>
-    <div class="legend-item"><span class="color-dot status-schulung"></span> Schulung</div>
-    <div class="legend-item"><span class="color-dot school-holiday"></span> NRW Ferien</div>
+    <div class="legend-group">
+      <div class="legend-item"><span class="color-dot weekend"></span> Wochenende</div>
+      <div class="legend-item"><span class="color-dot holiday"></span> Feiertag</div>
+      <div class="legend-item"><span class="color-dot school-holiday"></span> NRW Ferien</div>
+    </div>
+    <div class="legend-divider" aria-hidden="true"></div>
+    <div class="legend-group">
+      <div class="legend-item"><span class="color-dot status-urlaub"></span> Urlaub</div>
+      <div class="legend-item"><span class="color-dot status-urlaub-am"></span> Urlaub vormittags</div>
+      <div class="legend-item"><span class="color-dot status-urlaub-pm"></span> Urlaub nachmittags</div>
+      <div class="legend-item"><span class="color-dot status-krank"></span> krank</div>
+      <div class="legend-item"><span class="color-dot status-schulung"></span> Schulung</div>
+      <div class="legend-item"><span class="color-dot status-einsatz"></span> Einsatz</div>
+    </div>
   </div>
 
   <div class="context-menu" id="context-menu"></div>
@@ -222,6 +252,7 @@
       { label: "Urlaub nachmittags", value: "urlaub-pm", className: "status-urlaub-pm" },
       { label: "krank", value: "krank", className: "status-krank" },
       { label: "Schulung", value: "schulung", className: "status-schulung" },
+      { label: "Einsatz", value: "einsatz", className: "status-einsatz", requiresWeekendOrHoliday: true },
     ];
 
     const monthNames = [
@@ -249,6 +280,9 @@
 
     const data = loadData();
     const schoolHolidayDates = new Set();
+    let isSelecting = false;
+    let lastSelectionEvent = null;
+    const selectedCells = new Map();
 
     function loadData() {
       try {
@@ -458,7 +492,8 @@
 
           td.dataset.memberIndex = index;
           td.dataset.day = day;
-          td.addEventListener("click", (event) => openContextMenu(event, index, day));
+          td.addEventListener("mousedown", (event) => handleCellMouseDown(event, td));
+          td.addEventListener("mouseover", () => handleCellMouseOver(td));
           tr.appendChild(td);
         }
 
@@ -468,6 +503,7 @@
       table.appendChild(tbody);
       container.appendChild(table);
       addTableHoverHighlights(table);
+      clearSelection();
     }
 
     function editMemberName(cell, index) {
@@ -505,30 +541,35 @@
       });
     }
 
-    function openContextMenu(event, memberIndex, day) {
-      const monthData = getMonthData(activeMonth);
-      if (!data.members[memberIndex]) {
+    function openContextMenu(event, selection) {
+      if (!selection.length) {
         return;
       }
+      const monthData = getMonthData(activeMonth);
 
       const menu = document.getElementById("context-menu");
       menu.innerHTML = "";
 
       statusOptions.forEach((option) => {
+        if (option.requiresWeekendOrHoliday && !selection.every(({ day }) => isWeekendOrHoliday(day))) {
+          return;
+        }
         const button = document.createElement("button");
         const color = document.createElement("span");
         color.className = `color-dot ${option.className}`.trim();
         button.appendChild(color);
         button.append(option.label);
         button.addEventListener("click", () => {
-          if (!monthData.days[memberIndex]) {
-            monthData.days[memberIndex] = {};
-          }
-          if (option.value) {
-            monthData.days[memberIndex][day] = option.value;
-          } else {
-            delete monthData.days[memberIndex][day];
-          }
+          selection.forEach(({ memberIndex, day }) => {
+            if (!monthData.days[memberIndex]) {
+              monthData.days[memberIndex] = {};
+            }
+            if (option.value) {
+              monthData.days[memberIndex][day] = option.value;
+            } else {
+              delete monthData.days[memberIndex][day];
+            }
+          });
           saveData();
           menu.style.display = "none";
           renderCalendar();
@@ -540,6 +581,80 @@
       menu.style.left = `${event.pageX + 6}px`;
       menu.style.display = "block";
     }
+
+    function isWeekendOrHoliday(day) {
+      const dateKey = `${currentYear}-${String(activeMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const isWeekend = [0, 6].includes(new Date(currentYear, activeMonth, day).getDay());
+      const isHoliday = holidaySet.has(dateKey);
+      return isWeekend || isHoliday;
+    }
+
+    function handleCellMouseDown(event, cell) {
+      if (event.button !== 0) {
+        return;
+      }
+      event.preventDefault();
+      clearSelection();
+      isSelecting = true;
+      lastSelectionEvent = event;
+      addCellToSelection(cell);
+    }
+
+    function handleCellMouseOver(cell) {
+      if (!isSelecting) {
+        return;
+      }
+      addCellToSelection(cell);
+    }
+
+    function addCellToSelection(cell) {
+      const info = getCellInfo(cell);
+      if (!info) {
+        return;
+      }
+      if (selectedCells.has(info.key)) {
+        return;
+      }
+      selectedCells.set(info.key, info);
+      cell.classList.add("cell-selected");
+    }
+
+    function clearSelection() {
+      selectedCells.forEach((info) => {
+        info.cell.classList.remove("cell-selected");
+      });
+      selectedCells.clear();
+      isSelecting = false;
+    }
+
+    function getCellInfo(cell) {
+      const memberIndex = Number(cell.dataset.memberIndex);
+      const day = Number(cell.dataset.day);
+      if (!Number.isFinite(memberIndex) || !Number.isFinite(day)) {
+        return null;
+      }
+      if (!data.members[memberIndex]) {
+        return null;
+      }
+      return {
+        memberIndex,
+        day,
+        key: `${memberIndex}-${day}`,
+        cell,
+      };
+    }
+
+    document.addEventListener("mouseup", (event) => {
+      if (!isSelecting) {
+        return;
+      }
+      isSelecting = false;
+      lastSelectionEvent = event;
+      const selection = Array.from(selectedCells.values()).map(({ memberIndex, day }) => ({ memberIndex, day }));
+      if (selection.length) {
+        openContextMenu(lastSelectionEvent, selection);
+      }
+    });
 
     function sortMembersAndReindex(targetData) {
       const membersWithIndex = targetData.members.map((member, index) => ({
@@ -632,6 +747,7 @@
       const menu = document.getElementById("context-menu");
       if (!menu.contains(event.target) && !event.target.classList.contains("cell")) {
         menu.style.display = "none";
+        clearSelection();
       }
     });
 
