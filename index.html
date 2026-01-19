@@ -10,8 +10,7 @@
       --holiday: #fff6cc;
       --grid-border: #d6d6d6;
       --status-urlaub: #7bd889;
-      --status-urlaub-am: #b7f0c0;
-      --status-urlaub-pm: #9fe3b0;
+      --status-urlaub-half: #b7f0c0;
       --status-krank: #ff9b9b;
       --status-schulung: #9fb7ff;
       --status-einsatz: #ffd18a;
@@ -146,15 +145,15 @@
     }
 
     .status-urlaub-half {
-      background: var(--status-urlaub-am);
+      background: var(--status-urlaub-half);
     }
 
     .status-urlaub-am {
-      background: var(--status-urlaub-am);
+      background: linear-gradient(135deg, var(--status-urlaub-half) 0 50%, transparent 50% 100%);
     }
 
     .status-urlaub-pm {
-      background: var(--status-urlaub-pm);
+      background: linear-gradient(135deg, transparent 0 50%, var(--status-urlaub-half) 50% 100%);
     }
 
     .status-krank {
@@ -282,7 +281,10 @@
     const schoolHolidayDates = new Set();
     let isSelecting = false;
     let lastSelectionEvent = null;
+    let selectionStart = null;
+    let selectionEnd = null;
     const selectedCells = new Map();
+    let activeTable = null;
 
     function loadData() {
       try {
@@ -503,6 +505,7 @@
       table.appendChild(tbody);
       container.appendChild(table);
       addTableHoverHighlights(table);
+      activeTable = table;
       clearSelection();
     }
 
@@ -597,34 +600,58 @@
       clearSelection();
       isSelecting = true;
       lastSelectionEvent = event;
-      addCellToSelection(cell);
+      selectionStart = getCellInfo(cell);
+      selectionEnd = selectionStart;
+      updateSelectionRectangle();
     }
 
     function handleCellMouseOver(cell) {
       if (!isSelecting) {
         return;
       }
-      addCellToSelection(cell);
+      selectionEnd = getCellInfo(cell);
+      updateSelectionRectangle();
     }
 
-    function addCellToSelection(cell) {
-      const info = getCellInfo(cell);
-      if (!info) {
+    function updateSelectionRectangle() {
+      if (!selectionStart || !selectionEnd || !activeTable) {
         return;
       }
-      if (selectedCells.has(info.key)) {
-        return;
+      clearSelectionCells();
+      const minMember = Math.min(selectionStart.memberIndex, selectionEnd.memberIndex);
+      const maxMember = Math.max(selectionStart.memberIndex, selectionEnd.memberIndex);
+      const minDay = Math.min(selectionStart.day, selectionEnd.day);
+      const maxDay = Math.max(selectionStart.day, selectionEnd.day);
+
+      for (let memberIndex = minMember; memberIndex <= maxMember; memberIndex += 1) {
+        for (let day = minDay; day <= maxDay; day += 1) {
+          const cell = activeTable.querySelector(
+            `td.cell[data-member-index="${memberIndex}"][data-day="${day}"]`
+          );
+          if (cell) {
+            const info = getCellInfo(cell);
+            if (!info || selectedCells.has(info.key)) {
+              continue;
+            }
+            selectedCells.set(info.key, info);
+            cell.classList.add("cell-selected");
+          }
+        }
       }
-      selectedCells.set(info.key, info);
-      cell.classList.add("cell-selected");
     }
 
-    function clearSelection() {
+    function clearSelectionCells() {
       selectedCells.forEach((info) => {
         info.cell.classList.remove("cell-selected");
       });
       selectedCells.clear();
+    }
+
+    function clearSelection() {
+      clearSelectionCells();
       isSelecting = false;
+      selectionStart = null;
+      selectionEnd = null;
     }
 
     function getCellInfo(cell) {
