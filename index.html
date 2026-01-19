@@ -215,7 +215,7 @@
     }
 
     .cell-selected {
-      box-shadow: inset 0 0 0 2px #1d6fa5;
+      background-image: linear-gradient(rgba(29, 111, 165, 0.25), rgba(29, 111, 165, 0.25));
     }
   </style>
 </head>
@@ -671,7 +671,7 @@
       };
     }
 
-    document.addEventListener("mouseup", (event) => {
+    function handleSelectionComplete(event) {
       if (!isSelecting) {
         return;
       }
@@ -681,7 +681,9 @@
       if (selection.length) {
         openContextMenu(lastSelectionEvent, selection);
       }
-    });
+    }
+
+    window.addEventListener("mouseup", handleSelectionComplete);
 
     function sortMembersAndReindex(targetData) {
       const membersWithIndex = targetData.members.map((member, index) => ({
