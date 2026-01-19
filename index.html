@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Urlaubsplanung</title>
+  <style>
+    :root {
+      --weekend: #d9f0ff;
+      --holiday: #fff6cc;
+      --grid-border: #d6d6d6;
+      --status-urlaub: #7bd889;
+      --status-urlaub-am: #b7f0c0;
+      --status-urlaub-pm: #9fe3b0;
+      --status-krank: #ff9b9b;
+      --status-schulung: #9fb7ff;
+    }
+
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      margin: 24px;
+      color: #1f1f1f;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab-button {
+      border: 1px solid #bfc9d4;
+      background: #f3f5f7;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .tab-button.active {
+      background: #1d6fa5;
+      color: white;
+      border-color: #1d6fa5;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: fixed;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--grid-border);
+      text-align: center;
+      min-width: 10px;
+      min-height: 10px;
+      padding: 4px;
+      font-size: 12px;
+    }
+
+    th.member-column,
+    td.member-column {
+      text-align: left;
+      width: 180px;
+      min-width: 180px;
+      background: #fafafa;
+      font-weight: 600;
+    }
+
+    td.member-input {
+      font-weight: 400;
+      cursor: text;
+    }
+
+    .cell {
+      cursor: pointer;
+      height: 22px;
+    }
+
+    .weekend {
+      background: var(--weekend);
+    }
+
+    .holiday {
+      background: var(--holiday);
+    }
+
+    .context-menu {
+      position: absolute;
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+      padding: 8px;
+      display: none;
+      z-index: 20;
+      min-width: 180px;
+    }
+
+    .context-menu button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 6px 8px;
+      border: none;
+      background: none;
+      text-align: left;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .context-menu button:hover {
+      background: #f0f4f8;
+    }
+
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 4px;
+      display: inline-block;
+      border: 1px solid #a3a3a3;
+    }
+
+    .status-urlaub {
+      background: var(--status-urlaub);
+    }
+
+    .status-urlaub-half {
+      background: var(--status-urlaub-am);
+    }
+
+    .status-urlaub-am {
+      background: var(--status-urlaub-am);
+    }
+
+    .status-urlaub-pm {
+      background: var(--status-urlaub-pm);
+    }
+
+    .status-krank {
+      background: var(--status-krank);
+    }
+
+    .status-schulung {
+      background: var(--status-schulung);
+    }
+
+    .legend {
+      margin-top: 12px;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .row-highlight td,
+    .row-highlight th {
+      border-color: #5f6368;
+    }
+
+    .col-highlight {
+      border-color: #5f6368;
+    }
+  </style>
+</head>
+<body>
+  <h1 id="page-title"></h1>
+  <div class="tabs" id="month-tabs"></div>
+  <div id="calendar-container"></div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="color-dot weekend"></span> Wochenende</div>
+    <div class="legend-item"><span class="color-dot holiday"></span> Feiertag</div>
+    <div class="legend-item"><span class="color-dot status-urlaub"></span> Urlaub</div>
+    <div class="legend-item"><span class="color-dot status-urlaub-am"></span> Urlaub vormittags</div>
+    <div class="legend-item"><span class="color-dot status-urlaub-pm"></span> Urlaub nachmittags</div>
+    <div class="legend-item"><span class="color-dot status-krank"></span> krank</div>
+    <div class="legend-item"><span class="color-dot status-schulung"></span> Schulung</div>
+  </div>
+
+  <div class="context-menu" id="context-menu"></div>
+
+  <script>
+    const statusOptions = [
+      { label: "nichts", value: "", className: "" },
+      { label: "Urlaub", value: "urlaub", className: "status-urlaub" },
+      { label: "Urlaub vormittags", value: "urlaub-am", className: "status-urlaub-am" },
+      { label: "Urlaub nachmittags", value: "urlaub-pm", className: "status-urlaub-pm" },
+      { label: "krank", value: "krank", className: "status-krank" },
+      { label: "Schulung", value: "schulung", className: "status-schulung" },
+    ];
+
+    const monthNames = [
+      "Januar",
+      "Februar",
+      "März",
+      "April",
+      "Mai",
+      "Juni",
+      "Juli",
+      "August",
+      "September",
+      "Oktober",
+      "November",
+      "Dezember",
+    ];
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    let activeMonth = 0;
+
+    const storageKey = "teamHolidayData";
+
+    const data = loadData();
+
+    function loadData() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(storageKey)) || {
+          year: currentYear,
+          members: [],
+          months: {},
+        };
+        return normalizeData(stored);
+      } catch (error) {
+        return { year: currentYear, members: [], months: {} };
+      }
+    }
+
+    function normalizeData(stored) {
+      const normalized = {
+        year: stored.year || currentYear,
+        members: Array.isArray(stored.members) ? stored.members : [],
+        months: stored.months || {},
+      };
+
+      if (!normalized.members.length) {
+        const firstMonthWithMembers = Object.values(normalized.months).find(
+          (month) => month && Array.isArray(month.members) && month.members.length
+        );
+        if (firstMonthWithMembers) {
+          normalized.members = firstMonthWithMembers.members.map((member) => ({
+            name: member.name || "",
+          }));
+        }
+      }
+
+      Object.values(normalized.months).forEach((month) => {
+        if (month && month.members) {
+          delete month.members;
+        }
+        if (month && !month.days) {
+          month.days = {};
+        }
+        if (month && month.days) {
+          migrateHalfDayStatuses(month.days);
+        }
+      });
+
+      sortMembersAndReindex(normalized);
+      return normalized;
+    }
+
+    function saveData() {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    }
+
+    function getMonthData(monthIndex) {
+      if (!data.months[monthIndex]) {
+        data.months[monthIndex] = { days: {} };
+      } else if (!data.months[monthIndex].days) {
+        data.months[monthIndex].days = {};
+      }
+      return data.months[monthIndex];
+    }
+
+    function getDaysInMonth(year, monthIndex) {
+      return new Date(year, monthIndex + 1, 0).getDate();
+    }
+
+    function getHolidays(year) {
+      const fixed = [
+        { month: 0, day: 1 },
+        { month: 4, day: 1 },
+        { month: 9, day: 3 },
+        { month: 11, day: 25 },
+        { month: 11, day: 26 },
+      ];
+
+      return fixed.map((date) => `${year}-${String(date.month + 1).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`);
+    }
+
+    const holidaySet = new Set(getHolidays(currentYear));
+
+    function buildTabs() {
+      const container = document.getElementById("month-tabs");
+      container.innerHTML = "";
+      monthNames.forEach((name, index) => {
+        const button = document.createElement("button");
+        button.className = "tab-button" + (index === activeMonth ? " active" : "");
+        button.textContent = name;
+        button.addEventListener("click", () => {
+          activeMonth = index;
+          renderCalendar();
+        });
+        container.appendChild(button);
+      });
+    }
+
+    function renderCalendar() {
+      buildTabs();
+      const title = document.getElementById("page-title");
+      title.textContent = `${monthNames[activeMonth]} ${currentYear}`;
+      const container = document.getElementById("calendar-container");
+      container.innerHTML = "";
+
+      const monthData = getMonthData(activeMonth);
+      const daysInMonth = getDaysInMonth(currentYear, activeMonth);
+
+      const table = document.createElement("table");
+      const thead = document.createElement("thead");
+      const headerRow = document.createElement("tr");
+
+      const memberHeader = document.createElement("th");
+      memberHeader.className = "member-column";
+      memberHeader.textContent = "Team-Mitglied";
+      memberHeader.dataset.col = "member";
+      headerRow.appendChild(memberHeader);
+
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        const th = document.createElement("th");
+        th.textContent = `${String(day).padStart(2, "0")}.${String(activeMonth + 1).padStart(2, "0")}`;
+        th.dataset.col = String(day);
+        headerRow.appendChild(th);
+      }
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      const rows = [...data.members];
+      rows.push({ name: "" });
+
+      rows.forEach((member, index) => {
+        const tr = document.createElement("tr");
+
+        const nameCell = document.createElement("td");
+        nameCell.className = "member-column member-input";
+        nameCell.textContent = member.name || "";
+        nameCell.dataset.col = "member";
+        nameCell.addEventListener("click", () => editMemberName(nameCell, index));
+        tr.appendChild(nameCell);
+
+        for (let day = 1; day <= daysInMonth; day += 1) {
+          const td = document.createElement("td");
+          td.className = "cell";
+          td.dataset.col = String(day);
+          const dateKey = `${currentYear}-${String(activeMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const isWeekend = [0, 6].includes(new Date(currentYear, activeMonth, day).getDay());
+          const isHoliday = holidaySet.has(dateKey);
+
+          const status = monthData.days?.[index]?.[day];
+          if (status) {
+            td.classList.add(`status-${status}`);
+          } else if (isHoliday) {
+            td.classList.add("holiday");
+          } else if (isWeekend) {
+            td.classList.add("weekend");
+          }
+
+          td.dataset.memberIndex = index;
+          td.dataset.day = day;
+          td.addEventListener("click", (event) => openContextMenu(event, index, day));
+          tr.appendChild(td);
+        }
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      container.appendChild(table);
+      addTableHoverHighlights(table);
+    }
+
+    function editMemberName(cell, index) {
+      if (cell.querySelector("input")) {
+        return;
+      }
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = cell.textContent;
+      input.style.width = "95%";
+      cell.textContent = "";
+      cell.appendChild(input);
+      input.focus();
+      input.select();
+
+      const finalize = () => {
+        const name = input.value.trim();
+        cell.textContent = name;
+        if (index < data.members.length) {
+          data.members[index].name = name;
+        } else if (name) {
+          data.members.push({ name });
+        }
+
+        sortMembersAndReindex(data);
+        saveData();
+        renderCalendar();
+      };
+
+      input.addEventListener("blur", finalize);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          input.blur();
+        }
+      });
+    }
+
+    function openContextMenu(event, memberIndex, day) {
+      const monthData = getMonthData(activeMonth);
+      if (!data.members[memberIndex]) {
+        return;
+      }
+
+      const menu = document.getElementById("context-menu");
+      menu.innerHTML = "";
+
+      statusOptions.forEach((option) => {
+        const button = document.createElement("button");
+        const color = document.createElement("span");
+        color.className = `color-dot ${option.className}`.trim();
+        button.appendChild(color);
+        button.append(option.label);
+        button.addEventListener("click", () => {
+          if (!monthData.days[memberIndex]) {
+            monthData.days[memberIndex] = {};
+          }
+          if (option.value) {
+            monthData.days[memberIndex][day] = option.value;
+          } else {
+            delete monthData.days[memberIndex][day];
+          }
+          saveData();
+          menu.style.display = "none";
+          renderCalendar();
+        });
+        menu.appendChild(button);
+      });
+
+      menu.style.top = `${event.pageY + 6}px`;
+      menu.style.left = `${event.pageX + 6}px`;
+      menu.style.display = "block";
+    }
+
+    function sortMembersAndReindex(targetData) {
+      const membersWithIndex = targetData.members.map((member, index) => ({
+        ...member,
+        originalIndex: index,
+      }));
+      const collator = new Intl.Collator("de", { sensitivity: "base" });
+      membersWithIndex.sort((a, b) => {
+        const nameA = (a.name || "").trim();
+        const nameB = (b.name || "").trim();
+        if (!nameA && !nameB) {
+          return a.originalIndex - b.originalIndex;
+        }
+        if (!nameA) {
+          return 1;
+        }
+        if (!nameB) {
+          return -1;
+        }
+        const result = collator.compare(nameA, nameB);
+        return result !== 0 ? result : a.originalIndex - b.originalIndex;
+      });
+
+      const indexMap = new Map();
+      membersWithIndex.forEach((member, newIndex) => {
+        indexMap.set(member.originalIndex, newIndex);
+      });
+
+      targetData.members = membersWithIndex.map(({ name }) => ({ name }));
+
+      Object.values(targetData.months).forEach((month) => {
+        if (!month || !month.days) {
+          return;
+        }
+        const reordered = {};
+        Object.entries(month.days).forEach(([memberIndex, days]) => {
+          const newIndex = indexMap.get(Number(memberIndex));
+          if (newIndex !== undefined) {
+            reordered[newIndex] = days;
+          }
+        });
+        month.days = reordered;
+      });
+    }
+
+    function migrateHalfDayStatuses(daysByMember) {
+      Object.values(daysByMember).forEach((days) => {
+        if (!days) {
+          return;
+        }
+        Object.entries(days).forEach(([day, value]) => {
+          if (value === "urlaub-half") {
+            days[day] = "urlaub-am";
+          }
+        });
+      });
+    }
+
+    function addTableHoverHighlights(table) {
+      const clearHighlights = () => {
+        table.querySelectorAll(".row-highlight").forEach((row) => row.classList.remove("row-highlight"));
+        table.querySelectorAll(".col-highlight").forEach((cell) => cell.classList.remove("col-highlight"));
+      };
+
+      table.addEventListener("mouseover", (event) => {
+        const cell = event.target.closest("td, th");
+        if (!cell) {
+          return;
+        }
+        clearHighlights();
+        const row = cell.parentElement;
+        if (row) {
+          row.classList.add("row-highlight");
+        }
+        const colKey = cell.dataset.col;
+        if (!colKey) {
+          return;
+        }
+        table.querySelectorAll(`[data-col="${colKey}"]`).forEach((colCell) => {
+          colCell.classList.add("col-highlight");
+        });
+      });
+
+      table.addEventListener("mouseleave", () => {
+        clearHighlights();
+      });
+    }
+
+    document.addEventListener("click", (event) => {
+      const menu = document.getElementById("context-menu");
+      if (!menu.contains(event.target) && !event.target.classList.contains("cell")) {
+        menu.style.display = "none";
+      }
+    });
+
+    renderCalendar();
+  </script>
+</body>
+</html>
