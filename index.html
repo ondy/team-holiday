@@ -14,6 +14,8 @@
       --status-urlaub-pm: #9fe3b0;
       --status-krank: #ff9b9b;
       --status-schulung: #9fb7ff;
+      --school-holiday: #e5e5e5;
+      --hover-highlight: #4b4f55;
     }
 
     body {
@@ -88,6 +90,10 @@
 
     .holiday {
       background: var(--holiday);
+    }
+
+    .school-holiday {
+      background: var(--school-holiday);
     }
 
     .context-menu {
@@ -168,11 +174,11 @@
 
     .row-highlight td,
     .row-highlight th {
-      box-shadow: inset 0 0 0 2px #5f6368;
+      box-shadow: inset 0 0 0 1px var(--hover-highlight);
     }
 
     .col-highlight {
-      box-shadow: inset 0 0 0 2px #5f6368;
+      box-shadow: inset 0 0 0 1px var(--hover-highlight);
     }
   </style>
 </head>
@@ -189,6 +195,7 @@
     <div class="legend-item"><span class="color-dot status-urlaub-pm"></span> Urlaub nachmittags</div>
     <div class="legend-item"><span class="color-dot status-krank"></span> krank</div>
     <div class="legend-item"><span class="color-dot status-schulung"></span> Schulung</div>
+    <div class="legend-item"><span class="color-dot school-holiday"></span> NRW Ferien</div>
   </div>
 
   <div class="context-menu" id="context-menu"></div>
@@ -225,6 +232,7 @@
     const storageKey = "teamHolidayData";
 
     const data = loadData();
+    const schoolHolidayDates = new Set();
 
     function loadData() {
       try {
@@ -275,6 +283,46 @@
 
     function saveData() {
       localStorage.setItem(storageKey, JSON.stringify(data));
+    }
+
+    function getSchoolHolidayStorageKey(year) {
+      return `schoolHolidaysNW_${year}`;
+    }
+
+    function loadSchoolHolidays(year) {
+      const cached = localStorage.getItem(getSchoolHolidayStorageKey(year));
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          applySchoolHolidays(parsed);
+          return Promise.resolve();
+        } catch (error) {
+          localStorage.removeItem(getSchoolHolidayStorageKey(year));
+        }
+      }
+
+      return fetch(`https://ferien-api.de/api/v1/holidays/NW/${year}`)
+        .then((response) => response.json())
+        .then((entries) => {
+          localStorage.setItem(getSchoolHolidayStorageKey(year), JSON.stringify(entries));
+          applySchoolHolidays(entries);
+        })
+        .catch(() => {});
+    }
+
+    function applySchoolHolidays(entries) {
+      schoolHolidayDates.clear();
+      if (!Array.isArray(entries)) {
+        return;
+      }
+      entries.forEach((entry) => {
+        const start = new Date(entry.start);
+        const end = new Date(entry.end);
+        for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+          const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+          schoolHolidayDates.add(key);
+        }
+      });
     }
 
     function getMonthData(monthIndex) {
@@ -377,6 +425,8 @@
             td.classList.add(`status-${status}`);
           } else if (isHoliday) {
             td.classList.add("holiday");
+          } else if (schoolHolidayDates.has(dateKey)) {
+            td.classList.add("school-holiday");
           } else if (isWeekend) {
             td.classList.add("weekend");
           }
@@ -561,6 +611,9 @@
     });
 
     renderCalendar();
+    loadSchoolHolidays(currentYear).then(() => {
+      renderCalendar();
+    });
   </script>
 </body>
 </html>
