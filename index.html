@@ -206,8 +206,15 @@
     }
 
     .outside-month {
-      background: #f1f5f9;
-      color: #7b8794;
+      opacity: 0.8;
+    }
+
+    .month-boundary-left {
+      border-left: 3px solid #111827;
+    }
+
+    .month-boundary-right {
+      border-right: 3px solid #111827;
     }
 
     .context-menu button {
@@ -643,6 +650,12 @@
         if (!dayInfo.inMonth) {
           th.classList.add("outside-month");
         }
+        if (dayInfo.position === "start") {
+          th.classList.add("month-boundary-left");
+        }
+        if (dayInfo.position === "end") {
+          th.classList.add("month-boundary-right");
+        }
         headerRow.appendChild(th);
       });
 
@@ -687,6 +700,12 @@
           td.dataset.col = dayInfo.colKey;
           if (!dayInfo.inMonth) {
             td.classList.add("outside-month");
+          }
+          if (dayInfo.position === "start") {
+            td.classList.add("month-boundary-left");
+          }
+          if (dayInfo.position === "end") {
+            td.classList.add("month-boundary-right");
           }
           const dateKey = dayInfo.key;
           const isWeekend = [0, 6].includes(dayInfo.date.getDay());
@@ -779,7 +798,7 @@
       const nextMonthDate = new Date(year, monthIndex + 1, 1);
       const columns = [];
 
-      const addColumn = (date, inMonth, day, targetMonthIndex) => {
+      const addColumn = (date, inMonth, day, targetMonthIndex, position = "") => {
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         columns.push({
           date,
@@ -789,17 +808,19 @@
           month: date.getMonth() + 1,
           monthIndex: targetMonthIndex,
           colKey: `col-${columns.length}`,
+          position,
         });
       };
 
       const prevMonthIndex = (monthIndex + 11) % 12;
       const nextMonthIndex = (monthIndex + 1) % 12;
 
-      addColumn(new Date(year, monthIndex - 1, prevDay), false, prevDay, prevMonthIndex);
+      addColumn(new Date(year, monthIndex - 1, prevDay), false, prevDay, prevMonthIndex, "before");
       for (let day = 1; day <= daysInMonth; day += 1) {
-        addColumn(new Date(year, monthIndex, day), true, day, monthIndex);
+        const position = day === 1 ? "start" : day === daysInMonth ? "end" : "";
+        addColumn(new Date(year, monthIndex, day), true, day, monthIndex, position);
       }
-      addColumn(new Date(year, monthIndex + 1, 1), false, 1, nextMonthIndex);
+      addColumn(new Date(year, monthIndex + 1, 1), false, 1, nextMonthIndex, "after");
 
       return columns;
     }
