@@ -693,7 +693,9 @@
 
       dayColumns.forEach((dayInfo) => {
         const th = document.createElement("th");
-        const dayLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
+        const yearSuffix = String(dayInfo.date.getFullYear()).slice(-2);
+        const baseLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
+        const dayLabel = dayInfo.inMonth ? baseLabel : `${baseLabel}.${yearSuffix}`;
         const weekday = dayInfo.date.toLocaleDateString("de-DE", { weekday: "short" });
         th.innerHTML = `${dayLabel}<div class="day-short">${weekday}</div>`;
         th.dataset.col = dayInfo.colKey;
