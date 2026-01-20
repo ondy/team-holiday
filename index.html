@@ -37,6 +37,21 @@
       margin-bottom: 16px;
     }
 
+    .year-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .year-controls button {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
     .actions {
       display: flex;
       gap: 8px;
@@ -357,7 +372,11 @@
 </head>
 <body>
   <div class="header">
-    <h1 id="page-title"></h1>
+    <div class="year-controls">
+      <button id="prev-year" type="button" title="Vorheriges Jahr">←</button>
+      <h1 id="page-title"></h1>
+      <button id="next-year" type="button" title="Nächstes Jahr">→</button>
+    </div>
     <div class="actions">
       <button id="undo-button" type="button" title="Undo">↶ Undo</button>
       <button id="redo-button" type="button" title="Redo">↷ Redo</button>
@@ -418,6 +437,7 @@
     const currentMonthIndex = now.getMonth();
     const currentDay = now.getDate();
     let activeMonth = 0;
+    let activeYear = currentYear;
 
     const storageKey = "teamHolidayData";
 
@@ -655,13 +675,20 @@
 
     const holidaySet = new Set();
     const holidayNameMap = new Map();
-    [currentYear - 1, currentYear, currentYear + 1].forEach((year) => {
-      getHolidays(year).forEach((holiday) => {
-        const key = `${holiday.date.getFullYear()}-${String(holiday.date.getMonth() + 1).padStart(2, "0")}-${String(holiday.date.getDate()).padStart(2, "0")}`;
-        holidaySet.add(key);
-        holidayNameMap.set(key, holiday.name);
+
+    function updateHolidayMaps(year) {
+      holidaySet.clear();
+      holidayNameMap.clear();
+      [year - 1, year, year + 1].forEach((targetYear) => {
+        getHolidays(targetYear).forEach((holiday) => {
+          const key = `${holiday.date.getFullYear()}-${String(holiday.date.getMonth() + 1).padStart(2, "0")}-${String(holiday.date.getDate()).padStart(2, "0")}`;
+          holidaySet.add(key);
+          holidayNameMap.set(key, holiday.name);
+        });
       });
-    });
+    }
+
+    updateHolidayMaps(activeYear);
 
     function buildTabs() {
       const container = document.getElementById("month-tabs");
@@ -683,13 +710,13 @@
     function renderCalendar() {
       buildTabs();
       const title = document.getElementById("page-title");
-      title.textContent = `${monthNames[activeMonth]} ${currentYear}`;
+      title.textContent = `${activeYear}`;
       const container = document.getElementById("calendar-container");
       container.innerHTML = "";
 
-      const monthData = getMonthData(currentYear, activeMonth);
-      const daysInMonth = getDaysInMonth(currentYear, activeMonth);
-      const dayColumns = buildDayColumns(currentYear, activeMonth);
+      const monthData = getMonthData(activeYear, activeMonth);
+      const daysInMonth = getDaysInMonth(activeYear, activeMonth);
+      const dayColumns = buildDayColumns(activeYear, activeMonth);
 
       const wrapper = document.createElement("div");
       wrapper.className = "table-wrapper";
@@ -894,7 +921,7 @@
     }
 
     function renderTodayColumnHighlight(wrapper, table, daysInMonth) {
-      if (activeMonth !== currentMonthIndex || currentDay > daysInMonth) {
+      if (activeYear !== currentYear || activeMonth !== currentMonthIndex || currentDay > daysInMonth) {
         return;
       }
       const headerCell = table.querySelector(`th[data-day="${currentDay}"]`);
@@ -1030,7 +1057,7 @@
       if (!selection.length) {
         return;
       }
-      const monthData = getMonthData(currentYear, activeMonth);
+      const monthData = getMonthData(activeYear, activeMonth);
 
       const menu = document.getElementById("context-menu");
       menu.innerHTML = "";
@@ -1074,8 +1101,8 @@
     }
 
     function isWeekendOrHoliday(day) {
-      const dateKey = `${currentYear}-${String(activeMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const isWeekend = [0, 6].includes(new Date(currentYear, activeMonth, day).getDay());
+      const dateKey = `${activeYear}-${String(activeMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const isWeekend = [0, 6].includes(new Date(activeYear, activeMonth, day).getDay());
       const isHoliday = holidaySet.has(dateKey);
       return isWeekend || isHoliday;
     }
@@ -1112,7 +1139,7 @@
         start -= 1;
       }
       while (
-        end < getDaysInMonth(currentYear, activeMonth) &&
+        end < getDaysInMonth(activeYear, activeMonth) &&
         isVacationStatus(monthData.days?.[memberIndex]?.[end + 1])
       ) {
         end += 1;
@@ -1121,7 +1148,7 @@
     }
 
     function toggleVacationApproval(memberIndex, day) {
-      const monthData = getMonthData(currentYear, activeMonth);
+      const monthData = getMonthData(activeYear, activeMonth);
       if (!isVacationStatus(monthData.days?.[memberIndex]?.[day])) {
         return;
       }
@@ -1351,15 +1378,28 @@
       }
     });
 
+    function changeYear(delta) {
+      activeYear += delta;
+      updateHolidayMaps(activeYear);
+      loadSchoolHolidays(activeYear).then(() => {
+        renderCalendar();
+      });
+      renderCalendar();
+    }
+
     renderCalendar();
-    loadSchoolHolidays(currentYear).then(() => {
+    loadSchoolHolidays(activeYear).then(() => {
       renderCalendar();
     });
 
     const undoButton = document.getElementById("undo-button");
     const redoButton = document.getElementById("redo-button");
+    const prevYearButton = document.getElementById("prev-year");
+    const nextYearButton = document.getElementById("next-year");
     undoButton.addEventListener("click", handleUndo);
     redoButton.addEventListener("click", handleRedo);
+    prevYearButton.addEventListener("click", () => changeYear(-1));
+    nextYearButton.addEventListener("click", () => changeYear(1));
     updateUndoRedoButtons();
   </script>
 </body>
