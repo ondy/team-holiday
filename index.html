@@ -25,8 +25,34 @@
       color: #1f1f1f;
     }
 
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
     h1 {
       margin-bottom: 16px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .actions button {
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .actions button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .tabs {
@@ -283,7 +309,13 @@
   </style>
 </head>
 <body>
-  <h1 id="page-title"></h1>
+  <div class="header">
+    <h1 id="page-title"></h1>
+    <div class="actions">
+      <button id="undo-button" type="button" title="Undo">↶ Undo</button>
+      <button id="redo-button" type="button" title="Redo">↷ Redo</button>
+    </div>
+  </div>
   <div class="tabs" id="month-tabs"></div>
   <div id="calendar-container"></div>
 
@@ -342,6 +374,8 @@
 
     const data = loadData();
     const schoolHolidayDates = new Set();
+    const undoStack = [];
+    const redoStack = [];
     let isSelecting = false;
     let lastSelectionEvent = null;
     let selectionStart = null;
@@ -399,6 +433,54 @@
 
     function saveData() {
       localStorage.setItem(storageKey, JSON.stringify(data));
+    }
+
+    function snapshotData() {
+      return JSON.stringify(data);
+    }
+
+    function recordUndoState() {
+      undoStack.push(snapshotData());
+      redoStack.length = 0;
+      updateUndoRedoButtons();
+    }
+
+    function applySnapshot(snapshot) {
+      const parsed = JSON.parse(snapshot);
+      data.year = parsed.year || currentYear;
+      data.members = parsed.members || [];
+      data.months = parsed.months || {};
+    }
+
+    function updateUndoRedoButtons() {
+      const undoButton = document.getElementById("undo-button");
+      const redoButton = document.getElementById("redo-button");
+      undoButton.disabled = undoStack.length === 0;
+      redoButton.disabled = redoStack.length === 0;
+    }
+
+    function handleUndo() {
+      if (!undoStack.length) {
+        return;
+      }
+      redoStack.push(snapshotData());
+      const snapshot = undoStack.pop();
+      applySnapshot(snapshot);
+      saveData();
+      renderCalendar();
+      updateUndoRedoButtons();
+    }
+
+    function handleRedo() {
+      if (!redoStack.length) {
+        return;
+      }
+      undoStack.push(snapshotData());
+      const snapshot = redoStack.pop();
+      applySnapshot(snapshot);
+      saveData();
+      renderCalendar();
+      updateUndoRedoButtons();
     }
 
     function getSchoolHolidayStorageKey(year) {
@@ -631,9 +713,20 @@
 
     function finalizeMemberInput(cell, index, input) {
       const name = input.value.trim();
-      if (index < data.members.length) {
+      const isExisting = index < data.members.length;
+      const previousName = isExisting ? data.members[index].name : "";
+      if (!name && !isExisting) {
+        renderCalendar();
+        return;
+      }
+      if (isExisting && name === previousName) {
+        renderCalendar();
+        return;
+      }
+      recordUndoState();
+      if (isExisting) {
         data.members[index].name = name;
-      } else if (name) {
+      } else {
         data.members.push({ name });
       }
 
@@ -693,6 +786,7 @@
       if (!window.confirm(`Möchtest du ${member.name || "dieses Team-Mitglied"} wirklich löschen?`)) {
         return;
       }
+      recordUndoState();
       data.members.splice(index, 1);
       Object.values(data.months).forEach((month) => {
         if (!month || !month.days) {
@@ -732,6 +826,7 @@
         button.appendChild(color);
         button.append(option.label);
         button.addEventListener("click", () => {
+          recordUndoState();
           selection.forEach(({ memberIndex, day }) => {
             if (!monthData.days[memberIndex]) {
               monthData.days[memberIndex] = {};
@@ -960,6 +1055,12 @@
     loadSchoolHolidays(currentYear).then(() => {
       renderCalendar();
     });
+
+    const undoButton = document.getElementById("undo-button");
+    const redoButton = document.getElementById("redo-button");
+    undoButton.addEventListener("click", handleUndo);
+    redoButton.addEventListener("click", handleRedo);
+    updateUndoRedoButtons();
   </script>
 </body>
 </html>
