@@ -9,8 +9,7 @@
       --weekend: #d9f0ff;
       --holiday: #fff6cc;
       --grid-border: #d6d6d6;
-      --member-column-width: 180px;
-      --min-day-column-width: 42px;
+      --cell-width: 42px;
       --status-urlaub: #7bd889;
       --status-urlaub-half: #b7f0c0;
       --status-krank: #ff9b9b;
@@ -119,6 +118,7 @@
     td {
       border: 1px solid var(--grid-border);
       text-align: center;
+      width: var(--cell-width);
       min-width: 10px;
       min-height: 10px;
       padding: 4px;
@@ -128,8 +128,8 @@
     th.member-column,
     td.member-column {
       text-align: left;
-      width: var(--member-column-width);
-      min-width: var(--member-column-width);
+      width: var(--cell-width);
+      min-width: var(--cell-width);
       background: #fafafa;
       font-weight: 600;
     }
@@ -926,11 +926,10 @@
 
     function getMaxDayColumns(container) {
       const rootStyles = getComputedStyle(document.documentElement);
-      const minDayWidth = Number.parseFloat(rootStyles.getPropertyValue("--min-day-column-width")) || 40;
-      const memberWidth = Number.parseFloat(rootStyles.getPropertyValue("--member-column-width")) || 180;
+      const cellWidth = Number.parseFloat(rootStyles.getPropertyValue("--cell-width")) || 40;
       const containerWidth = container.clientWidth || window.innerWidth;
-      const availableWidth = Math.max(containerWidth - memberWidth, minDayWidth);
-      return Math.max(1, Math.floor(availableWidth / minDayWidth));
+      const availableWidth = Math.max(containerWidth - cellWidth, cellWidth);
+      return Math.max(1, Math.floor(availableWidth / cellWidth));
     }
 
     function chunkDayColumns(columns, maxColumns) {
