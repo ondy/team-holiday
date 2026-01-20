@@ -145,6 +145,36 @@
       height: 22px;
     }
 
+    .vacation-cell {
+      position: relative;
+    }
+
+    .vacation-cell .approval-toggle {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      display: none;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 2px;
+      z-index: 3;
+    }
+
+    .vacation-cell:hover .approval-toggle {
+      display: block;
+    }
+
+    .vacation-approved::after {
+      content: "✓";
+      position: absolute;
+      right: 4px;
+      bottom: 2px;
+      font-size: 12px;
+      color: #1d6fa5;
+      font-weight: 700;
+    }
+
     .day-short {
       font-size: 10px;
       color: #555;
@@ -422,6 +452,9 @@
         if (month && !month.days) {
           month.days = {};
         }
+        if (month && !month.approved) {
+          month.approved = {};
+        }
         if (month && month.days) {
           migrateHalfDayStatuses(month.days);
         }
@@ -525,9 +558,12 @@
 
     function getMonthData(monthIndex) {
       if (!data.months[monthIndex]) {
-        data.months[monthIndex] = { days: {} };
+        data.months[monthIndex] = { days: {}, approved: {} };
       } else if (!data.months[monthIndex].days) {
         data.months[monthIndex].days = {};
+      }
+      if (!data.months[monthIndex].approved) {
+        data.months[monthIndex].approved = {};
       }
       return data.months[monthIndex];
     }
@@ -650,6 +686,27 @@
             td.classList.add("weekend");
           } else if (schoolHolidayDates.has(dateKey)) {
             td.classList.add("school-holiday");
+          }
+
+          if (status && isVacationStatus(status)) {
+            td.classList.add("vacation-cell");
+            if (monthData.approved?.[index]?.[day]) {
+              td.classList.add("vacation-approved");
+            }
+            const approvalToggle = document.createElement("label");
+            approvalToggle.className = "approval-toggle";
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = Boolean(monthData.approved?.[index]?.[day]);
+            checkbox.addEventListener("mousedown", (event) => {
+              event.stopPropagation();
+            });
+            checkbox.addEventListener("click", (event) => {
+              event.stopPropagation();
+              toggleVacationApproval(index, day);
+            });
+            approvalToggle.appendChild(checkbox);
+            td.appendChild(approvalToggle);
           }
 
           td.dataset.memberIndex = index;
@@ -858,6 +915,50 @@
       const isWeekend = [0, 6].includes(new Date(currentYear, activeMonth, day).getDay());
       const isHoliday = holidaySet.has(dateKey);
       return isWeekend || isHoliday;
+    }
+
+    function isVacationStatus(status) {
+      return ["urlaub", "urlaub-am", "urlaub-pm"].includes(status);
+    }
+
+    function getVacationBlock(memberIndex, day, monthData) {
+      let start = day;
+      let end = day;
+      while (start > 1 && isVacationStatus(monthData.days?.[memberIndex]?.[start - 1])) {
+        start -= 1;
+      }
+      while (
+        end < getDaysInMonth(currentYear, activeMonth) &&
+        isVacationStatus(monthData.days?.[memberIndex]?.[end + 1])
+      ) {
+        end += 1;
+      }
+      return { start, end };
+    }
+
+    function toggleVacationApproval(memberIndex, day) {
+      const monthData = getMonthData(activeMonth);
+      if (!isVacationStatus(monthData.days?.[memberIndex]?.[day])) {
+        return;
+      }
+      recordUndoState();
+      if (!monthData.approved[memberIndex]) {
+        monthData.approved[memberIndex] = {};
+      }
+      const { start, end } = getVacationBlock(memberIndex, day, monthData);
+      const shouldApprove = !monthData.approved[memberIndex][day];
+      for (let currentDay = start; currentDay <= end; currentDay += 1) {
+        if (shouldApprove) {
+          monthData.approved[memberIndex][currentDay] = true;
+        } else {
+          delete monthData.approved[memberIndex][currentDay];
+        }
+      }
+      if (Object.keys(monthData.approved[memberIndex]).length === 0) {
+        delete monthData.approved[memberIndex];
+      }
+      saveData();
+      renderCalendar();
     }
 
     function handleCellMouseDown(event, cell) {
