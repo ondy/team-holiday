@@ -14,6 +14,7 @@
       --status-krank: #ff9b9b;
       --status-schulung: #9fb7ff;
       --status-einsatz: #ffd18a;
+      --status-gleittag: #ffdca8;
       --school-holiday: #e5e5e5;
       --hover-highlight: #4b4f55;
       --today-highlight: #1b1b1b;
@@ -271,6 +272,10 @@
       background: var(--status-einsatz);
     }
 
+    .status-gleittag {
+      background: var(--status-gleittag);
+    }
+
     .legend {
       margin-top: 12px;
       display: flex;
@@ -375,6 +380,7 @@
       <div class="legend-item"><span class="color-dot status-krank"></span> krank</div>
       <div class="legend-item"><span class="color-dot status-schulung"></span> Schulung</div>
       <div class="legend-item"><span class="color-dot status-einsatz"></span> Einsatz</div>
+      <div class="legend-item"><span class="color-dot status-gleittag"></span> Gleittag</div>
     </div>
   </div>
 
@@ -389,6 +395,7 @@
       { label: "krank", value: "krank", className: "status-krank" },
       { label: "Schulung", value: "schulung", className: "status-schulung" },
       { label: "Einsatz", value: "einsatz", className: "status-einsatz", requiresWeekendOrHoliday: true },
+      { label: "Gleittag", value: "gleittag", className: "status-gleittag" },
     ];
 
     const monthNames = [
@@ -589,11 +596,50 @@
         { month: 0, day: 1 },
         { month: 4, day: 1 },
         { month: 9, day: 3 },
+        { month: 10, day: 1 },
         { month: 11, day: 25 },
         { month: 11, day: 26 },
       ];
 
-      return fixed.map((date) => `${year}-${String(date.month + 1).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`);
+      const easter = getEasterSunday(year);
+      const movable = [
+        offsetDate(easter, 1),  // Ostermontag
+        offsetDate(easter, 39), // Christi Himmelfahrt
+        offsetDate(easter, 50), // Pfingstmontag
+        offsetDate(easter, 60), // Fronleichnam
+      ];
+
+      const holidayDates = fixed.map(
+        (date) => new Date(year, date.month, date.day)
+      ).concat(movable);
+
+      return holidayDates.map(
+        (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+      );
+    }
+
+    function getEasterSunday(year) {
+      const a = year % 19;
+      const b = Math.floor(year / 100);
+      const c = year % 100;
+      const d = Math.floor(b / 4);
+      const e = b % 4;
+      const f = Math.floor((b + 8) / 25);
+      const g = Math.floor((b - f + 1) / 3);
+      const h = (19 * a + b - d - g + 15) % 30;
+      const i = Math.floor(c / 4);
+      const k = c % 4;
+      const l = (32 + 2 * e + 2 * i - h - k) % 7;
+      const m = Math.floor((a + 11 * h + 22 * l) / 451);
+      const month = Math.floor((h + l - 7 * m + 114) / 31);
+      const day = ((h + l - 7 * m + 114) % 31) + 1;
+      return new Date(year, month - 1, day);
+    }
+
+    function offsetDate(date, days) {
+      const result = new Date(date);
+      result.setDate(result.getDate() + days);
+      return result;
     }
 
     const holidaySet = new Set(getHolidays(currentYear));
@@ -717,10 +763,10 @@
             td.classList.add(`status-${status}`);
           } else if (isHoliday) {
             td.classList.add("holiday");
-          } else if (isWeekend) {
-            td.classList.add("weekend");
           } else if (schoolHolidayDates.has(dateKey)) {
             td.classList.add("school-holiday");
+          } else if (isWeekend) {
+            td.classList.add("weekend");
           }
 
           if (status && isVacationStatus(status)) {
