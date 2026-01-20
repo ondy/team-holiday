@@ -474,6 +474,7 @@
     const selectedCells = new Map();
     let activeTable = null;
     let justOpenedMenu = false;
+    let resizeTimer = null;
 
     function loadData() {
       try {
@@ -1465,6 +1466,17 @@
         clearSelection();
       }
     });
+
+    function handleResize() {
+      if (resizeTimer) {
+        window.clearTimeout(resizeTimer);
+      }
+      resizeTimer = window.setTimeout(() => {
+        renderCalendar();
+      }, 120);
+    }
+
+    window.addEventListener("resize", handleResize);
 
     function changeYear(delta) {
       activeYear += delta;
