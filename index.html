@@ -593,29 +593,28 @@
 
     function getHolidays(year) {
       const fixed = [
-        { month: 0, day: 1 },
-        { month: 4, day: 1 },
-        { month: 9, day: 3 },
-        { month: 10, day: 1 },
-        { month: 11, day: 25 },
-        { month: 11, day: 26 },
+        { month: 0, day: 1, name: "Neujahr" },
+        { month: 4, day: 1, name: "Tag der Arbeit" },
+        { month: 9, day: 3, name: "Tag der Deutschen Einheit" },
+        { month: 10, day: 1, name: "Allerheiligen" },
+        { month: 11, day: 25, name: "1. Weihnachtstag" },
+        { month: 11, day: 26, name: "2. Weihnachtstag" },
       ];
 
       const easter = getEasterSunday(year);
       const movable = [
-        offsetDate(easter, 1),  // Ostermontag
-        offsetDate(easter, 39), // Christi Himmelfahrt
-        offsetDate(easter, 50), // Pfingstmontag
-        offsetDate(easter, 60), // Fronleichnam
+        { date: offsetDate(easter, 1), name: "Ostermontag" },
+        { date: offsetDate(easter, 39), name: "Christi Himmelfahrt" },
+        { date: offsetDate(easter, 50), name: "Pfingstmontag" },
+        { date: offsetDate(easter, 60), name: "Fronleichnam" },
       ];
 
-      const holidayDates = fixed.map(
-        (date) => new Date(year, date.month, date.day)
-      ).concat(movable);
-
-      return holidayDates.map(
-        (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-      );
+      return fixed
+        .map((date) => ({
+          date: new Date(year, date.month, date.day),
+          name: date.name,
+        }))
+        .concat(movable);
     }
 
     function getEasterSunday(year) {
@@ -642,7 +641,13 @@
       return result;
     }
 
-    const holidaySet = new Set(getHolidays(currentYear));
+    const holidaySet = new Set();
+    const holidayNameMap = new Map();
+    getHolidays(currentYear).forEach((holiday) => {
+      const key = `${holiday.date.getFullYear()}-${String(holiday.date.getMonth() + 1).padStart(2, "0")}-${String(holiday.date.getDate()).padStart(2, "0")}`;
+      holidaySet.add(key);
+      holidayNameMap.set(key, holiday.name);
+    });
 
     function buildTabs() {
       const container = document.getElementById("month-tabs");
@@ -695,6 +700,10 @@
         }
         if (!dayInfo.inMonth) {
           th.classList.add("outside-month");
+        }
+        const holidayName = holidayNameMap.get(dayInfo.key);
+        if (holidayName) {
+          th.title = holidayName;
         }
         if (dayInfo.position === "start") {
           th.classList.add("month-boundary-left");
@@ -763,10 +772,10 @@
             td.classList.add(`status-${status}`);
           } else if (isHoliday) {
             td.classList.add("holiday");
-          } else if (schoolHolidayDates.has(dateKey)) {
-            td.classList.add("school-holiday");
           } else if (isWeekend) {
             td.classList.add("weekend");
+          } else if (schoolHolidayDates.has(dateKey)) {
+            td.classList.add("school-holiday");
           }
 
           if (status && isVacationStatus(status)) {
