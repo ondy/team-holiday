@@ -436,25 +436,23 @@
     function loadData() {
       try {
         const stored = JSON.parse(localStorage.getItem(storageKey)) || {
-          year: currentYear,
           members: [],
-          months: {},
+          years: {},
         };
         return normalizeData(stored);
       } catch (error) {
-        return { year: currentYear, members: [], months: {} };
+        return { members: [], years: {} };
       }
     }
 
     function normalizeData(stored) {
       const normalized = {
-        year: stored.year || currentYear,
         members: Array.isArray(stored.members) ? stored.members : [],
-        months: stored.months || {},
+        years: stored.years || {},
       };
 
-      if (!normalized.members.length) {
-        const firstMonthWithMembers = Object.values(normalized.months).find(
+      if (!normalized.members.length && stored.months) {
+        const firstMonthWithMembers = Object.values(stored.months).find(
           (month) => month && Array.isArray(month.members) && month.members.length
         );
         if (firstMonthWithMembers) {
@@ -464,19 +462,28 @@
         }
       }
 
-      Object.values(normalized.months).forEach((month) => {
-        if (month && month.members) {
-          delete month.members;
+      if (stored.months && !normalized.years[currentYear]) {
+        normalized.years[currentYear] = { months: stored.months };
+      }
+
+      Object.values(normalized.years).forEach((yearData) => {
+        if (!yearData.months) {
+          yearData.months = {};
         }
-        if (month && !month.days) {
-          month.days = {};
-        }
-        if (month && !month.approved) {
-          month.approved = {};
-        }
-        if (month && month.days) {
-          migrateHalfDayStatuses(month.days);
-        }
+        Object.values(yearData.months).forEach((month) => {
+          if (month && month.members) {
+            delete month.members;
+          }
+          if (month && !month.days) {
+            month.days = {};
+          }
+          if (month && !month.approved) {
+            month.approved = {};
+          }
+          if (month && month.days) {
+            migrateHalfDayStatuses(month.days);
+          }
+        });
       });
 
       sortMembersAndReindex(normalized);
@@ -499,9 +506,8 @@
 
     function applySnapshot(snapshot) {
       const parsed = JSON.parse(snapshot);
-      data.year = parsed.year || currentYear;
       data.members = parsed.members || [];
-      data.months = parsed.months || {};
+      data.years = parsed.years || {};
     }
 
     function updateUndoRedoButtons() {
@@ -575,16 +581,20 @@
       });
     }
 
-    function getMonthData(monthIndex) {
-      if (!data.months[monthIndex]) {
-        data.months[monthIndex] = { days: {}, approved: {} };
-      } else if (!data.months[monthIndex].days) {
-        data.months[monthIndex].days = {};
+    function getMonthData(year, monthIndex) {
+      if (!data.years[year]) {
+        data.years[year] = { months: {} };
       }
-      if (!data.months[monthIndex].approved) {
-        data.months[monthIndex].approved = {};
+      const yearData = data.years[year];
+      if (!yearData.months[monthIndex]) {
+        yearData.months[monthIndex] = { days: {}, approved: {} };
+      } else if (!yearData.months[monthIndex].days) {
+        yearData.months[monthIndex].days = {};
       }
-      return data.months[monthIndex];
+      if (!yearData.months[monthIndex].approved) {
+        yearData.months[monthIndex].approved = {};
+      }
+      return yearData.months[monthIndex];
     }
 
     function getDaysInMonth(year, monthIndex) {
@@ -645,10 +655,12 @@
 
     const holidaySet = new Set();
     const holidayNameMap = new Map();
-    getHolidays(currentYear).forEach((holiday) => {
-      const key = `${holiday.date.getFullYear()}-${String(holiday.date.getMonth() + 1).padStart(2, "0")}-${String(holiday.date.getDate()).padStart(2, "0")}`;
-      holidaySet.add(key);
-      holidayNameMap.set(key, holiday.name);
+    [currentYear - 1, currentYear, currentYear + 1].forEach((year) => {
+      getHolidays(year).forEach((holiday) => {
+        const key = `${holiday.date.getFullYear()}-${String(holiday.date.getMonth() + 1).padStart(2, "0")}-${String(holiday.date.getDate()).padStart(2, "0")}`;
+        holidaySet.add(key);
+        holidayNameMap.set(key, holiday.name);
+      });
     });
 
     function buildTabs() {
@@ -675,7 +687,7 @@
       const container = document.getElementById("calendar-container");
       container.innerHTML = "";
 
-      const monthData = getMonthData(activeMonth);
+      const monthData = getMonthData(currentYear, activeMonth);
       const daysInMonth = getDaysInMonth(currentYear, activeMonth);
       const dayColumns = buildDayColumns(currentYear, activeMonth);
 
@@ -693,9 +705,8 @@
 
       dayColumns.forEach((dayInfo) => {
         const th = document.createElement("th");
-        const yearSuffix = String(dayInfo.date.getFullYear()).slice(-2);
-        const baseLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
-        const dayLabel = dayInfo.inMonth ? baseLabel : `${baseLabel}.${yearSuffix}`;
+      const baseLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
+      const dayLabel = baseLabel;
         const weekday = dayInfo.date.toLocaleDateString("de-DE", { weekday: "short" });
         th.innerHTML = `${dayLabel}<div class="day-short">${weekday}</div>`;
         th.dataset.col = dayInfo.colKey;
@@ -770,7 +781,7 @@
           const isWeekend = [0, 6].includes(dayInfo.date.getDay());
           const isHoliday = holidaySet.has(dateKey);
 
-          const targetMonthData = getMonthData(dayInfo.monthIndex);
+          const targetMonthData = getMonthData(dayInfo.year, dayInfo.monthIndex);
           const status = targetMonthData.days?.[index]?.[dayInfo.day];
           if (status) {
             td.classList.add(`status-${status}`);
@@ -857,7 +868,7 @@
       const nextMonthDate = new Date(year, monthIndex + 1, 1);
       const columns = [];
 
-      const addColumn = (date, inMonth, day, targetMonthIndex, position = "") => {
+      const addColumn = (date, inMonth, day, position = "") => {
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         columns.push({
           date,
@@ -865,21 +876,19 @@
           inMonth,
           day,
           month: date.getMonth() + 1,
-          monthIndex: targetMonthIndex,
+          monthIndex: date.getMonth(),
+          year: date.getFullYear(),
           colKey: `col-${columns.length}`,
           position,
         });
       };
 
-      const prevMonthIndex = (monthIndex + 11) % 12;
-      const nextMonthIndex = (monthIndex + 1) % 12;
-
-      addColumn(new Date(year, monthIndex - 1, prevDay), false, prevDay, prevMonthIndex, "before");
+      addColumn(new Date(year, monthIndex - 1, prevDay), false, prevDay, "before");
       for (let day = 1; day <= daysInMonth; day += 1) {
         const position = day === 1 ? "start" : day === daysInMonth ? "end" : "";
-        addColumn(new Date(year, monthIndex, day), true, day, monthIndex, position);
+        addColumn(new Date(year, monthIndex, day), true, day, position);
       }
-      addColumn(new Date(year, monthIndex + 1, 1), false, 1, nextMonthIndex, "after");
+      addColumn(new Date(year, monthIndex + 1, 1), false, 1, "after");
 
       return columns;
     }
@@ -981,20 +990,37 @@
       }
       recordUndoState();
       data.members.splice(index, 1);
-      Object.values(data.months).forEach((month) => {
-        if (!month || !month.days) {
+      Object.values(data.years).forEach((yearData) => {
+        if (!yearData.months) {
           return;
         }
-        const reordered = {};
-        Object.entries(month.days).forEach(([memberIndex, days]) => {
-          const numericIndex = Number(memberIndex);
-          if (numericIndex < index) {
-            reordered[numericIndex] = days;
-          } else if (numericIndex > index) {
-            reordered[numericIndex - 1] = days;
+        Object.values(yearData.months).forEach((month) => {
+          if (!month || !month.days) {
+            return;
+          }
+          const reordered = {};
+          Object.entries(month.days).forEach(([memberIndex, days]) => {
+            const numericIndex = Number(memberIndex);
+            if (numericIndex < index) {
+              reordered[numericIndex] = days;
+            } else if (numericIndex > index) {
+              reordered[numericIndex - 1] = days;
+            }
+          });
+          month.days = reordered;
+          if (month.approved) {
+            const reorderedApproved = {};
+            Object.entries(month.approved).forEach(([memberIndex, days]) => {
+              const numericIndex = Number(memberIndex);
+              if (numericIndex < index) {
+                reorderedApproved[numericIndex] = days;
+              } else if (numericIndex > index) {
+                reorderedApproved[numericIndex - 1] = days;
+              }
+            });
+            month.approved = reorderedApproved;
           }
         });
-        month.days = reordered;
       });
       saveData();
       renderCalendar();
@@ -1004,7 +1030,7 @@
       if (!selection.length) {
         return;
       }
-      const monthData = getMonthData(activeMonth);
+      const monthData = getMonthData(currentYear, activeMonth);
 
       const menu = document.getElementById("context-menu");
       menu.innerHTML = "";
@@ -1095,7 +1121,7 @@
     }
 
     function toggleVacationApproval(memberIndex, day) {
-      const monthData = getMonthData(activeMonth);
+      const monthData = getMonthData(currentYear, activeMonth);
       if (!isVacationStatus(monthData.days?.[memberIndex]?.[day])) {
         return;
       }
@@ -1241,18 +1267,33 @@
 
       targetData.members = membersWithIndex.map(({ name }) => ({ name }));
 
-      Object.values(targetData.months).forEach((month) => {
-        if (!month || !month.days) {
+      Object.values(targetData.years || {}).forEach((yearData) => {
+        if (!yearData.months) {
           return;
         }
-        const reordered = {};
-        Object.entries(month.days).forEach(([memberIndex, days]) => {
-          const newIndex = indexMap.get(Number(memberIndex));
-          if (newIndex !== undefined) {
-            reordered[newIndex] = days;
+        Object.values(yearData.months).forEach((month) => {
+          if (!month || !month.days) {
+            return;
+          }
+          const reordered = {};
+          Object.entries(month.days).forEach(([memberIndex, days]) => {
+            const newIndex = indexMap.get(Number(memberIndex));
+            if (newIndex !== undefined) {
+              reordered[newIndex] = days;
+            }
+          });
+          month.days = reordered;
+          if (month.approved) {
+            const reorderedApproved = {};
+            Object.entries(month.approved).forEach(([memberIndex, days]) => {
+              const newIndex = indexMap.get(Number(memberIndex));
+              if (newIndex !== undefined) {
+                reorderedApproved[newIndex] = days;
+              }
+            });
+            month.approved = reorderedApproved;
           }
         });
-        month.days = reordered;
       });
     }
 
