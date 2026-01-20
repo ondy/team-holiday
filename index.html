@@ -94,6 +94,22 @@
       border-radius: 4px;
     }
 
+    .member-input .input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .member-input .ok-button {
+      border: none;
+      background: #1d6fa5;
+      color: white;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
     .member-input input::placeholder {
       color: #9ca3af;
     }
@@ -613,13 +629,43 @@
       });
     }
 
+    function finalizeMemberInput(cell, index, input) {
+      const name = input.value.trim();
+      if (index < data.members.length) {
+        data.members[index].name = name;
+      } else if (name) {
+        data.members.push({ name });
+      }
+
+      sortMembersAndReindex(data);
+      saveData();
+      renderCalendar();
+    }
+
     function createMemberInput(cell, index, initialValue = "") {
+      const wrapper = document.createElement("div");
+      wrapper.className = "input-wrapper";
       const input = document.createElement("input");
       input.type = "text";
       input.placeholder = "Name eingeben";
       input.value = initialValue;
+      const okButton = document.createElement("button");
+      okButton.type = "button";
+      okButton.className = "ok-button";
+      okButton.textContent = "OK";
+      okButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        finalizeMemberInput(cell, index, input);
+      });
+      wrapper.appendChild(input);
+      wrapper.appendChild(okButton);
       cell.textContent = "";
-      cell.appendChild(input);
+      cell.appendChild(wrapper);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          finalizeMemberInput(cell, index, input);
+        }
+      });
       input.addEventListener("blur", () => {
         if (index === data.members.length && !input.value.trim()) {
           cell.textContent = "";
@@ -637,26 +683,6 @@
       const input = createMemberInput(cell, index, existingValue);
       input.focus();
       input.select();
-
-      const finalize = () => {
-        const name = input.value.trim();
-        if (index < data.members.length) {
-          data.members[index].name = name;
-        } else if (name) {
-          data.members.push({ name });
-        }
-
-        sortMembersAndReindex(data);
-        saveData();
-        renderCalendar();
-      };
-
-      input.addEventListener("blur", finalize);
-      input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          input.blur();
-        }
-      });
     }
 
     function removeMember(index) {
