@@ -9,6 +9,8 @@
       --weekend: #d9f0ff;
       --holiday: #fff6cc;
       --grid-border: #d6d6d6;
+      --member-column-width: 180px;
+      --min-day-column-width: 42px;
       --status-urlaub: #7bd889;
       --status-urlaub-half: #b7f0c0;
       --status-krank: #ff9b9b;
@@ -126,8 +128,8 @@
     th.member-column,
     td.member-column {
       text-align: left;
-      width: 180px;
-      min-width: 180px;
+      width: var(--member-column-width);
+      min-width: var(--member-column-width);
       background: #fafafa;
       font-weight: 600;
     }
@@ -348,6 +350,10 @@
 
     .table-wrapper {
       position: relative;
+    }
+
+    .table-wrapper + .table-wrapper {
+      margin-top: 16px;
     }
 
     .cell-selected {
@@ -726,190 +732,181 @@
       const monthData = getMonthData(activeYear, activeMonth);
       const daysInMonth = getDaysInMonth(activeYear, activeMonth);
       const dayColumns = buildDayColumns(activeYear, activeMonth);
+      const maxColumns = getMaxDayColumns(container);
+      const columnGroups = chunkDayColumns(dayColumns, maxColumns);
 
-      const wrapper = document.createElement("div");
-      wrapper.className = "table-wrapper";
-      const table = document.createElement("table");
-      const thead = document.createElement("thead");
-      const headerRow = document.createElement("tr");
+      columnGroups.forEach((group, groupIndex) => {
+        const isEditable = groupIndex === 0;
+        const wrapper = document.createElement("div");
+        wrapper.className = "table-wrapper";
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
 
-      const memberHeader = document.createElement("th");
-      memberHeader.className = "member-column";
-      memberHeader.textContent = "";
-      memberHeader.dataset.col = "member";
-      headerRow.appendChild(memberHeader);
+        const memberHeader = document.createElement("th");
+        memberHeader.className = "member-column";
+        memberHeader.textContent = "";
+        memberHeader.dataset.col = "member";
+        headerRow.appendChild(memberHeader);
 
-      dayColumns.forEach((dayInfo) => {
-        const th = document.createElement("th");
-      const baseLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
-      const dayLabel = baseLabel;
-        const weekday = dayInfo.date.toLocaleDateString("de-DE", { weekday: "short" });
-        th.innerHTML = `${dayLabel}<div class="day-short">${weekday}</div>`;
-        th.dataset.col = dayInfo.colKey;
-        if (dayInfo.inMonth) {
+        group.forEach((dayInfo) => {
+          const th = document.createElement("th");
+          const dayLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
+          const weekday = dayInfo.date.toLocaleDateString("de-DE", { weekday: "short" });
+          th.innerHTML = `${dayLabel}<div class="day-short">${weekday}</div>`;
+          th.dataset.col = dayInfo.colKey;
           th.dataset.day = String(dayInfo.day);
-        }
-        if (!dayInfo.inMonth) {
-          th.classList.add("outside-month");
-        }
-        const holidayName = holidayNameMap.get(dayInfo.key);
-        if (holidayName) {
-          th.title = holidayName;
-        }
-        if (dayInfo.position === "start") {
-          th.classList.add("month-boundary-left");
-        }
-        if (dayInfo.position === "end") {
-          th.classList.add("month-boundary-right");
-        }
-        headerRow.appendChild(th);
-      });
-
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement("tbody");
-
-      const rows = [...data.members];
-      rows.push({ name: "" });
-
-      rows.forEach((member, index) => {
-        const tr = document.createElement("tr");
-        tr.className = "member-row";
-
-        const nameCell = document.createElement("td");
-        nameCell.className = "member-column member-input";
-        nameCell.dataset.col = "member";
-        const nameSpan = document.createElement("span");
-        nameSpan.className = "member-name";
-        nameSpan.textContent = member.name || "";
-        nameCell.appendChild(nameSpan);
-        nameCell.addEventListener("click", () => editMemberName(nameCell, index));
-        if (index < data.members.length) {
-          const deleteButton = document.createElement("button");
-          deleteButton.type = "button";
-          deleteButton.className = "delete-button";
-          deleteButton.textContent = "Löschen";
-          deleteButton.addEventListener("click", (event) => {
-            event.stopPropagation();
-            removeMember(index);
-          });
-          nameCell.appendChild(deleteButton);
-        } else {
-          createMemberInput(nameCell, index, "");
-        }
-        tr.appendChild(nameCell);
-
-        dayColumns.forEach((dayInfo) => {
-          const td = document.createElement("td");
-          td.className = "cell";
-          td.dataset.col = dayInfo.colKey;
-          if (!dayInfo.inMonth) {
-            td.classList.add("outside-month");
+          const holidayName = holidayNameMap.get(dayInfo.key);
+          if (holidayName) {
+            th.title = holidayName;
           }
           if (dayInfo.position === "start") {
-            td.classList.add("month-boundary-left");
+            th.classList.add("month-boundary-left");
           }
           if (dayInfo.position === "end") {
-            td.classList.add("month-boundary-right");
+            th.classList.add("month-boundary-right");
           }
-          const dateKey = dayInfo.key;
-          const isWeekend = [0, 6].includes(dayInfo.date.getDay());
-          const isHoliday = holidaySet.has(dateKey);
-
-          const targetMonthData = getMonthData(dayInfo.year, dayInfo.monthIndex);
-          const status = targetMonthData.days?.[index]?.[dayInfo.day];
-          if (status) {
-            td.classList.add(`status-${status}`);
-          } else if (isHoliday) {
-            td.classList.add("holiday");
-          } else if (isWeekend) {
-            td.classList.add("weekend");
-          } else if (schoolHolidayDates.has(dateKey)) {
-            td.classList.add("school-holiday");
-          }
-
-          if (status && isVacationStatus(status)) {
-            td.classList.add("vacation-cell");
-            if (targetMonthData.approved?.[index]?.[dayInfo.day]) {
-              td.classList.add("vacation-approved");
-            }
-            if (dayInfo.inMonth) {
-              const approvalToggle = document.createElement("label");
-              approvalToggle.className = "approval-toggle";
-              const checkbox = document.createElement("input");
-              checkbox.type = "checkbox";
-              checkbox.checked = Boolean(targetMonthData.approved?.[index]?.[dayInfo.day]);
-              checkbox.addEventListener("mousedown", (event) => {
-                event.stopPropagation();
-              });
-              checkbox.addEventListener("click", (event) => {
-                event.stopPropagation();
-                toggleVacationApproval(index, dayInfo.day);
-              });
-              approvalToggle.appendChild(checkbox);
-              td.appendChild(approvalToggle);
-            }
-          }
-
-          if (dayInfo.inMonth) {
-            td.dataset.memberIndex = index;
-            td.dataset.day = dayInfo.day;
-            td.addEventListener("mousedown", (event) => handleCellMouseDown(event, td));
-            td.addEventListener("mouseover", () => handleCellMouseOver(td));
-          }
-          tr.appendChild(td);
+          headerRow.appendChild(th);
         });
 
-        tbody.appendChild(tr);
-      });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
 
-      table.appendChild(tbody);
+        const tbody = document.createElement("tbody");
 
-      const tfoot = document.createElement("tfoot");
-      const summaryRow = document.createElement("tr");
-      const summaryLabel = document.createElement("td");
-      summaryLabel.className = "member-column mini-cell";
-      summaryLabel.textContent = "";
-      summaryRow.appendChild(summaryLabel);
-      dayColumns.forEach((dayInfo) => {
-        const summaryCell = document.createElement("td");
-        summaryCell.className = "mini-cell";
-        if (dayInfo.inMonth) {
+        const rows = isEditable ? [...data.members, { name: "" }] : [...data.members];
+
+        rows.forEach((member, index) => {
+          const tr = document.createElement("tr");
+          tr.className = "member-row";
+
+          const nameCell = document.createElement("td");
+          nameCell.className = `member-column${isEditable ? " member-input" : ""}`;
+          nameCell.dataset.col = "member";
+          const nameSpan = document.createElement("span");
+          nameSpan.className = "member-name";
+          nameSpan.textContent = member.name || "";
+          nameCell.appendChild(nameSpan);
+          if (isEditable) {
+            nameCell.addEventListener("click", () => editMemberName(nameCell, index));
+            if (index < data.members.length) {
+              const deleteButton = document.createElement("button");
+              deleteButton.type = "button";
+              deleteButton.className = "delete-button";
+              deleteButton.textContent = "Löschen";
+              deleteButton.addEventListener("click", (event) => {
+                event.stopPropagation();
+                removeMember(index);
+              });
+              nameCell.appendChild(deleteButton);
+            } else {
+              createMemberInput(nameCell, index, "");
+            }
+          }
+          tr.appendChild(nameCell);
+
+          group.forEach((dayInfo) => {
+            const td = document.createElement("td");
+            td.className = "cell";
+            td.dataset.col = dayInfo.colKey;
+            if (dayInfo.position === "start") {
+              td.classList.add("month-boundary-left");
+            }
+            if (dayInfo.position === "end") {
+              td.classList.add("month-boundary-right");
+            }
+            const dateKey = dayInfo.key;
+            const isWeekend = [0, 6].includes(dayInfo.date.getDay());
+            const isHoliday = holidaySet.has(dateKey);
+
+            const targetMonthData = getMonthData(dayInfo.year, dayInfo.monthIndex);
+            const status = targetMonthData.days?.[index]?.[dayInfo.day];
+            if (status) {
+              td.classList.add(`status-${status}`);
+            } else if (isHoliday) {
+              td.classList.add("holiday");
+            } else if (isWeekend) {
+              td.classList.add("weekend");
+            } else if (schoolHolidayDates.has(dateKey)) {
+              td.classList.add("school-holiday");
+            }
+
+            if (status && isVacationStatus(status)) {
+              td.classList.add("vacation-cell");
+              if (targetMonthData.approved?.[index]?.[dayInfo.day]) {
+                td.classList.add("vacation-approved");
+              }
+              if (isEditable) {
+                const approvalToggle = document.createElement("label");
+                approvalToggle.className = "approval-toggle";
+                const checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.checked = Boolean(targetMonthData.approved?.[index]?.[dayInfo.day]);
+                checkbox.addEventListener("mousedown", (event) => {
+                  event.stopPropagation();
+                });
+                checkbox.addEventListener("click", (event) => {
+                  event.stopPropagation();
+                  toggleVacationApproval(index, dayInfo.day);
+                });
+                approvalToggle.appendChild(checkbox);
+                td.appendChild(approvalToggle);
+              }
+            }
+
+            if (isEditable) {
+              td.dataset.memberIndex = index;
+              td.dataset.day = dayInfo.day;
+              td.addEventListener("mousedown", (event) => handleCellMouseDown(event, td));
+              td.addEventListener("mouseover", () => handleCellMouseOver(td));
+            }
+            tr.appendChild(td);
+          });
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(tbody);
+
+        const tfoot = document.createElement("tfoot");
+        const summaryRow = document.createElement("tr");
+        const summaryLabel = document.createElement("td");
+        summaryLabel.className = "member-column mini-cell";
+        summaryLabel.textContent = "";
+        summaryRow.appendChild(summaryLabel);
+        group.forEach((dayInfo) => {
+          const summaryCell = document.createElement("td");
+          summaryCell.className = "mini-cell";
           const count = data.members.reduce((total, _member, memberIndex) => {
             const value = monthData.days?.[memberIndex]?.[dayInfo.day];
             return value ? total + 1 : total;
           }, 0);
           summaryCell.textContent = count ? String(count) : "";
-        } else {
-          summaryCell.textContent = "";
-        }
-        summaryRow.appendChild(summaryCell);
-      });
-      tfoot.appendChild(summaryRow);
-      table.appendChild(tfoot);
+          summaryRow.appendChild(summaryCell);
+        });
+        tfoot.appendChild(summaryRow);
+        table.appendChild(tfoot);
 
-      wrapper.appendChild(table);
-      container.appendChild(wrapper);
-      addTableHoverHighlights(table);
-      activeTable = table;
-      clearSelection();
-      renderTodayColumnHighlight(wrapper, table, daysInMonth);
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+        addTableHoverHighlights(table);
+        if (isEditable) {
+          activeTable = table;
+          clearSelection();
+        }
+        renderTodayColumnHighlight(wrapper, table, daysInMonth);
+      });
     }
 
     function buildDayColumns(year, monthIndex) {
       const daysInMonth = getDaysInMonth(year, monthIndex);
-      const prevMonthDate = new Date(year, monthIndex, 0);
-      const prevDay = prevMonthDate.getDate();
-      const nextMonthDate = new Date(year, monthIndex + 1, 1);
       const columns = [];
 
-      const addColumn = (date, inMonth, day, position = "") => {
+      const addColumn = (date, day, position = "") => {
         const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         columns.push({
           date,
           key,
-          inMonth,
           day,
           month: date.getMonth() + 1,
           monthIndex: date.getMonth(),
@@ -919,14 +916,32 @@
         });
       };
 
-      addColumn(new Date(year, monthIndex - 1, prevDay), false, prevDay, "before");
       for (let day = 1; day <= daysInMonth; day += 1) {
         const position = day === 1 ? "start" : day === daysInMonth ? "end" : "";
-        addColumn(new Date(year, monthIndex, day), true, day, position);
+        addColumn(new Date(year, monthIndex, day), day, position);
       }
-      addColumn(new Date(year, monthIndex + 1, 1), false, 1, "after");
 
       return columns;
+    }
+
+    function getMaxDayColumns(container) {
+      const rootStyles = getComputedStyle(document.documentElement);
+      const minDayWidth = Number.parseFloat(rootStyles.getPropertyValue("--min-day-column-width")) || 40;
+      const memberWidth = Number.parseFloat(rootStyles.getPropertyValue("--member-column-width")) || 180;
+      const containerWidth = container.clientWidth || window.innerWidth;
+      const availableWidth = Math.max(containerWidth - memberWidth, minDayWidth);
+      return Math.max(1, Math.floor(availableWidth / minDayWidth));
+    }
+
+    function chunkDayColumns(columns, maxColumns) {
+      if (columns.length <= maxColumns) {
+        return [columns];
+      }
+      const groups = [];
+      for (let index = 0; index < columns.length; index += maxColumns) {
+        groups.push(columns.slice(index, index + maxColumns));
+      }
+      return groups;
     }
 
     function renderTodayColumnHighlight(wrapper, table, daysInMonth) {
@@ -1186,6 +1201,10 @@
         return;
       }
       event.preventDefault();
+      const table = cell.closest("table");
+      if (table) {
+        activeTable = table;
+      }
       clearSelection();
       isSelecting = true;
       lastSelectionEvent = event;
@@ -1396,6 +1415,14 @@
       });
       renderCalendar();
     }
+
+    let resizeTimeout = null;
+    window.addEventListener("resize", () => {
+      window.clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(() => {
+        renderCalendar();
+      }, 150);
+    });
 
     renderCalendar();
     loadSchoolHolidays(activeYear).then(() => {
