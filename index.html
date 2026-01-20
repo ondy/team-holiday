@@ -205,6 +205,11 @@
       min-width: 180px;
     }
 
+    .outside-month {
+      background: #f1f5f9;
+      color: #7b8794;
+    }
+
     .context-menu button {
       display: flex;
       align-items: center;
@@ -612,6 +617,7 @@
 
       const monthData = getMonthData(activeMonth);
       const daysInMonth = getDaysInMonth(currentYear, activeMonth);
+      const dayColumns = buildDayColumns(currentYear, activeMonth);
 
       const wrapper = document.createElement("div");
       wrapper.className = "table-wrapper";
@@ -625,14 +631,20 @@
       memberHeader.dataset.col = "member";
       headerRow.appendChild(memberHeader);
 
-      for (let day = 1; day <= daysInMonth; day += 1) {
+      dayColumns.forEach((dayInfo) => {
         const th = document.createElement("th");
-        const dayLabel = `${String(day).padStart(2, "0")}.${String(activeMonth + 1).padStart(2, "0")}`;
-        const weekday = new Date(currentYear, activeMonth, day).toLocaleDateString("de-DE", { weekday: "short" });
+        const dayLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
+        const weekday = dayInfo.date.toLocaleDateString("de-DE", { weekday: "short" });
         th.innerHTML = `${dayLabel}<div class="day-short">${weekday}</div>`;
-        th.dataset.col = String(day);
+        th.dataset.col = dayInfo.colKey;
+        if (dayInfo.inMonth) {
+          th.dataset.day = String(dayInfo.day);
+        }
+        if (!dayInfo.inMonth) {
+          th.classList.add("outside-month");
+        }
         headerRow.appendChild(th);
-      }
+      });
 
       thead.appendChild(headerRow);
       table.appendChild(thead);
@@ -669,52 +681,57 @@
         }
         tr.appendChild(nameCell);
 
-        for (let day = 1; day <= daysInMonth; day += 1) {
+        dayColumns.forEach((dayInfo) => {
           const td = document.createElement("td");
           td.className = "cell";
-          td.dataset.col = String(day);
-          const dateKey = `${currentYear}-${String(activeMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          const isWeekend = [0, 6].includes(new Date(currentYear, activeMonth, day).getDay());
+          td.dataset.col = dayInfo.colKey;
+          if (!dayInfo.inMonth) {
+            td.classList.add("outside-month");
+          }
+          const dateKey = dayInfo.key;
+          const isWeekend = [0, 6].includes(dayInfo.date.getDay());
           const isHoliday = holidaySet.has(dateKey);
 
-          const status = monthData.days?.[index]?.[day];
-          if (status) {
-            td.classList.add(`status-${status}`);
-          } else if (isHoliday) {
-            td.classList.add("holiday");
-          } else if (isWeekend) {
-            td.classList.add("weekend");
-          } else if (schoolHolidayDates.has(dateKey)) {
-            td.classList.add("school-holiday");
-          }
-
-          if (status && isVacationStatus(status)) {
-            td.classList.add("vacation-cell");
-            if (monthData.approved?.[index]?.[day]) {
-              td.classList.add("vacation-approved");
+          if (dayInfo.inMonth) {
+            const status = monthData.days?.[index]?.[dayInfo.day];
+            if (status) {
+              td.classList.add(`status-${status}`);
+            } else if (isHoliday) {
+              td.classList.add("holiday");
+            } else if (isWeekend) {
+              td.classList.add("weekend");
+            } else if (schoolHolidayDates.has(dateKey)) {
+              td.classList.add("school-holiday");
             }
-            const approvalToggle = document.createElement("label");
-            approvalToggle.className = "approval-toggle";
-            const checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.checked = Boolean(monthData.approved?.[index]?.[day]);
-            checkbox.addEventListener("mousedown", (event) => {
-              event.stopPropagation();
-            });
-            checkbox.addEventListener("click", (event) => {
-              event.stopPropagation();
-              toggleVacationApproval(index, day);
-            });
-            approvalToggle.appendChild(checkbox);
-            td.appendChild(approvalToggle);
-          }
 
-          td.dataset.memberIndex = index;
-          td.dataset.day = day;
-          td.addEventListener("mousedown", (event) => handleCellMouseDown(event, td));
-          td.addEventListener("mouseover", () => handleCellMouseOver(td));
+            if (status && isVacationStatus(status)) {
+              td.classList.add("vacation-cell");
+              if (monthData.approved?.[index]?.[dayInfo.day]) {
+                td.classList.add("vacation-approved");
+              }
+              const approvalToggle = document.createElement("label");
+              approvalToggle.className = "approval-toggle";
+              const checkbox = document.createElement("input");
+              checkbox.type = "checkbox";
+              checkbox.checked = Boolean(monthData.approved?.[index]?.[dayInfo.day]);
+              checkbox.addEventListener("mousedown", (event) => {
+                event.stopPropagation();
+              });
+              checkbox.addEventListener("click", (event) => {
+                event.stopPropagation();
+                toggleVacationApproval(index, dayInfo.day);
+              });
+              approvalToggle.appendChild(checkbox);
+              td.appendChild(approvalToggle);
+            }
+
+            td.dataset.memberIndex = index;
+            td.dataset.day = dayInfo.day;
+            td.addEventListener("mousedown", (event) => handleCellMouseDown(event, td));
+            td.addEventListener("mouseover", () => handleCellMouseOver(td));
+          }
           tr.appendChild(td);
-        }
+        });
 
         tbody.appendChild(tr);
       });
@@ -727,16 +744,20 @@
       summaryLabel.className = "member-column mini-cell";
       summaryLabel.textContent = "";
       summaryRow.appendChild(summaryLabel);
-      for (let day = 1; day <= daysInMonth; day += 1) {
+      dayColumns.forEach((dayInfo) => {
         const summaryCell = document.createElement("td");
         summaryCell.className = "mini-cell";
-        const count = data.members.reduce((total, _member, memberIndex) => {
-          const value = monthData.days?.[memberIndex]?.[day];
-          return value ? total + 1 : total;
-        }, 0);
-        summaryCell.textContent = count ? String(count) : "";
+        if (dayInfo.inMonth) {
+          const count = data.members.reduce((total, _member, memberIndex) => {
+            const value = monthData.days?.[memberIndex]?.[dayInfo.day];
+            return value ? total + 1 : total;
+          }, 0);
+          summaryCell.textContent = count ? String(count) : "";
+        } else {
+          summaryCell.textContent = "";
+        }
         summaryRow.appendChild(summaryCell);
-      }
+      });
       tfoot.appendChild(summaryRow);
       table.appendChild(tfoot);
 
@@ -748,11 +769,43 @@
       renderTodayColumnHighlight(wrapper, table, daysInMonth);
     }
 
+    function buildDayColumns(year, monthIndex) {
+      const daysInMonth = getDaysInMonth(year, monthIndex);
+      const prevMonthDate = new Date(year, monthIndex, 0);
+      const prevDay = prevMonthDate.getDate();
+      const prevMonth = prevMonthDate.getMonth() + 1;
+      const prevYear = prevMonthDate.getFullYear();
+      const nextMonthDate = new Date(year, monthIndex + 1, 1);
+      const nextMonth = nextMonthDate.getMonth() + 1;
+      const nextYear = nextMonthDate.getFullYear();
+      const columns = [];
+
+      const addColumn = (date, inMonth, day) => {
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        columns.push({
+          date,
+          key,
+          inMonth,
+          day,
+          month: date.getMonth() + 1,
+          colKey: `col-${columns.length}`,
+        });
+      };
+
+      addColumn(new Date(prevYear, prevMonth - 1, prevDay), false, prevDay);
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        addColumn(new Date(year, monthIndex, day), true, day);
+      }
+      addColumn(new Date(nextYear, nextMonth - 1, 1), false, 1);
+
+      return columns;
+    }
+
     function renderTodayColumnHighlight(wrapper, table, daysInMonth) {
       if (activeMonth !== currentMonthIndex || currentDay > daysInMonth) {
         return;
       }
-      const headerCell = table.querySelector(`th[data-col="${currentDay}"]`);
+      const headerCell = table.querySelector(`th[data-day="${currentDay}"]`);
       if (!headerCell) {
         return;
       }
@@ -904,6 +957,7 @@
       menu.style.top = `${event.pageY + 6}px`;
       menu.style.left = `${event.pageX + 6}px`;
       menu.style.display = "block";
+      constrainMenuToViewport(menu);
       justOpenedMenu = true;
       window.setTimeout(() => {
         justOpenedMenu = false;
@@ -919,6 +973,27 @@
 
     function isVacationStatus(status) {
       return ["urlaub", "urlaub-am", "urlaub-pm"].includes(status);
+    }
+
+    function constrainMenuToViewport(menu) {
+      const rect = menu.getBoundingClientRect();
+      let left = rect.left;
+      let top = rect.top;
+      const padding = 8;
+      if (rect.right > window.innerWidth - padding) {
+        left = window.innerWidth - rect.width - padding;
+      }
+      if (rect.bottom > window.innerHeight - padding) {
+        top = window.innerHeight - rect.height - padding;
+      }
+      if (left < padding) {
+        left = padding;
+      }
+      if (top < padding) {
+        top = padding;
+      }
+      menu.style.left = `${left + window.scrollX}px`;
+      menu.style.top = `${top + window.scrollY}px`;
     }
 
     function getVacationBlock(memberIndex, day, monthData) {
