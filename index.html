@@ -38,18 +38,27 @@
     }
 
     .year-controls {
-      display: flex;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
       align-items: center;
       gap: 8px;
+    }
+
+    .year-controls h1 {
+      margin: 0;
     }
 
     .year-controls button {
       border: 1px solid #cbd5e1;
       background: #f8fafc;
-      padding: 4px 8px;
+      width: 32px;
+      height: 32px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .actions {
@@ -696,7 +705,7 @@
       monthNames.forEach((name, index) => {
         const button = document.createElement("button");
         const isActive = index === activeMonth;
-        const isCurrentMonth = index === currentMonthIndex;
+        const isCurrentMonth = index === currentMonthIndex && activeYear === currentYear;
         button.className = "tab-button" + (isActive ? " active" : "") + (isCurrentMonth ? " current-month" : "");
         button.textContent = name;
         button.addEventListener("click", () => {
@@ -1380,6 +1389,7 @@
 
     function changeYear(delta) {
       activeYear += delta;
+      activeMonth = delta > 0 ? 0 : 11;
       updateHolidayMaps(activeYear);
       loadSchoolHolidays(activeYear).then(() => {
         renderCalendar();
