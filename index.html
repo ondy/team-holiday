@@ -90,6 +90,12 @@
       height: 22px;
     }
 
+    .day-short {
+      font-size: 10px;
+      color: #555;
+      line-height: 1.1;
+    }
+
     .weekend {
       background: var(--weekend);
     }
@@ -198,11 +204,11 @@
 
     .row-highlight td,
     .row-highlight th {
-      background-image: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08));
+      background-color: rgba(0, 0, 0, 0.08);
     }
 
     .col-highlight {
-      background-image: linear-gradient(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08));
+      background-color: rgba(0, 0, 0, 0.08);
     }
 
     .today-col {
@@ -216,6 +222,30 @@
 
     .cell-selected {
       background-image: linear-gradient(rgba(29, 111, 165, 0.25), rgba(29, 111, 165, 0.25));
+    }
+
+    .mini-cell {
+      font-size: 11px;
+      color: #555;
+    }
+
+    .member-row .delete-button {
+      margin-left: 8px;
+      border: none;
+      background: #ef4444;
+      color: white;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+
+    .member-row:hover .delete-button {
+      opacity: 1;
+      pointer-events: auto;
     }
   </style>
 </head>
@@ -444,7 +474,9 @@
 
       for (let day = 1; day <= daysInMonth; day += 1) {
         const th = document.createElement("th");
-        th.textContent = `${String(day).padStart(2, "0")}.${String(activeMonth + 1).padStart(2, "0")}`;
+        const dayLabel = `${String(day).padStart(2, "0")}.${String(activeMonth + 1).padStart(2, "0")}`;
+        const weekday = new Date(currentYear, activeMonth, day).toLocaleDateString("de-DE", { weekday: "short" });
+        th.innerHTML = `${dayLabel}<div class="day-short">${weekday}</div>`;
         th.dataset.col = String(day);
         if (activeMonth === currentMonthIndex && day === currentDay) {
           th.classList.add("today-col");
@@ -462,12 +494,24 @@
 
       rows.forEach((member, index) => {
         const tr = document.createElement("tr");
+        tr.className = "member-row";
 
         const nameCell = document.createElement("td");
         nameCell.className = "member-column member-input";
         nameCell.textContent = member.name || "";
         nameCell.dataset.col = "member";
         nameCell.addEventListener("click", () => editMemberName(nameCell, index));
+        if (index < data.members.length) {
+          const deleteButton = document.createElement("button");
+          deleteButton.type = "button";
+          deleteButton.className = "delete-button";
+          deleteButton.textContent = "Löschen";
+          deleteButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            removeMember(index);
+          });
+          nameCell.appendChild(deleteButton);
+        }
         tr.appendChild(nameCell);
 
         for (let day = 1; day <= daysInMonth; day += 1) {
@@ -504,6 +548,26 @@
       });
 
       table.appendChild(tbody);
+
+      const tfoot = document.createElement("tfoot");
+      const summaryRow = document.createElement("tr");
+      const summaryLabel = document.createElement("td");
+      summaryLabel.className = "member-column mini-cell";
+      summaryLabel.textContent = "";
+      summaryRow.appendChild(summaryLabel);
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        const summaryCell = document.createElement("td");
+        summaryCell.className = "mini-cell";
+        const count = data.members.reduce((total, _member, memberIndex) => {
+          const value = monthData.days?.[memberIndex]?.[day];
+          return value ? total + 1 : total;
+        }, 0);
+        summaryCell.textContent = count ? String(count) : "";
+        summaryRow.appendChild(summaryCell);
+      }
+      tfoot.appendChild(summaryRow);
+      table.appendChild(tfoot);
+
       container.appendChild(table);
       addTableHoverHighlights(table);
       activeTable = table;
@@ -543,6 +607,34 @@
           input.blur();
         }
       });
+    }
+
+    function removeMember(index) {
+      const member = data.members[index];
+      if (!member) {
+        return;
+      }
+      if (!window.confirm(`Möchtest du ${member.name || "dieses Team-Mitglied"} wirklich löschen?`)) {
+        return;
+      }
+      data.members.splice(index, 1);
+      Object.values(data.months).forEach((month) => {
+        if (!month || !month.days) {
+          return;
+        }
+        const reordered = {};
+        Object.entries(month.days).forEach(([memberIndex, days]) => {
+          const numericIndex = Number(memberIndex);
+          if (numericIndex < index) {
+            reordered[numericIndex] = days;
+          } else if (numericIndex > index) {
+            reordered[numericIndex - 1] = days;
+          }
+        });
+        month.days = reordered;
+      });
+      saveData();
+      renderCalendar();
     }
 
     function openContextMenu(event, selection) {
