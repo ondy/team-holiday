@@ -110,7 +110,7 @@
 
     table {
       border-collapse: collapse;
-      width: 100%;
+      width: auto;
       table-layout: fixed;
       user-select: none;
     }
@@ -805,6 +805,9 @@
 
     function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, dayCellWidth }) {
       const table = document.createElement("table");
+      const tableWidth = MEMBER_COLUMN_WIDTH + dayCellWidth * dayColumns.length;
+      table.style.width = `${tableWidth}px`;
+      table.style.minWidth = `${tableWidth}px`;
       const thead = document.createElement("thead");
       const headerRow = document.createElement("tr");
 
