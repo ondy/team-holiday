@@ -285,6 +285,7 @@
     let selectionEnd = null;
     const selectedCells = new Map();
     let activeTable = null;
+    let justOpenedMenu = false;
 
     function loadData() {
       try {
@@ -583,6 +584,10 @@
       menu.style.top = `${event.pageY + 6}px`;
       menu.style.left = `${event.pageX + 6}px`;
       menu.style.display = "block";
+      justOpenedMenu = true;
+      window.setTimeout(() => {
+        justOpenedMenu = false;
+      }, 0);
     }
 
     function isWeekendOrHoliday(day) {
@@ -774,6 +779,9 @@
 
     document.addEventListener("click", (event) => {
       const menu = document.getElementById("context-menu");
+      if (justOpenedMenu) {
+        return;
+      }
       if (!menu.contains(event.target) && !event.target.classList.contains("cell")) {
         menu.style.display = "none";
         clearSelection();
