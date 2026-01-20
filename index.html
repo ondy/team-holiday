@@ -86,6 +86,18 @@
       cursor: text;
     }
 
+    .member-input input {
+      width: 95%;
+      font-size: 12px;
+      padding: 2px 4px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+    }
+
+    .member-input input::placeholder {
+      color: #9ca3af;
+    }
+
     .cell {
       cursor: pointer;
       height: 22px;
@@ -475,7 +487,7 @@
 
       const memberHeader = document.createElement("th");
       memberHeader.className = "member-column";
-      memberHeader.textContent = "Team-Mitglied";
+      memberHeader.textContent = "";
       memberHeader.dataset.col = "member";
       headerRow.appendChild(memberHeader);
 
@@ -502,8 +514,11 @@
 
         const nameCell = document.createElement("td");
         nameCell.className = "member-column member-input";
-        nameCell.textContent = member.name || "";
         nameCell.dataset.col = "member";
+        const nameSpan = document.createElement("span");
+        nameSpan.className = "member-name";
+        nameSpan.textContent = member.name || "";
+        nameCell.appendChild(nameSpan);
         nameCell.addEventListener("click", () => editMemberName(nameCell, index));
         if (index < data.members.length) {
           const deleteButton = document.createElement("button");
@@ -515,6 +530,8 @@
             removeMember(index);
           });
           nameCell.appendChild(deleteButton);
+        } else {
+          createMemberInput(nameCell, index, "");
         }
         tr.appendChild(nameCell);
 
@@ -596,22 +613,33 @@
       });
     }
 
+    function createMemberInput(cell, index, initialValue = "") {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Name eingeben";
+      input.value = initialValue;
+      cell.textContent = "";
+      cell.appendChild(input);
+      input.addEventListener("blur", () => {
+        if (index === data.members.length && !input.value.trim()) {
+          cell.textContent = "";
+          createMemberInput(cell, index, "");
+        }
+      });
+      return input;
+    }
+
     function editMemberName(cell, index) {
       if (cell.querySelector("input")) {
         return;
       }
-      const input = document.createElement("input");
-      input.type = "text";
-      input.value = cell.textContent;
-      input.style.width = "95%";
-      cell.textContent = "";
-      cell.appendChild(input);
+      const existingValue = cell.querySelector(".member-name")?.textContent || "";
+      const input = createMemberInput(cell, index, existingValue);
       input.focus();
       input.select();
 
       const finalize = () => {
         const name = input.value.trim();
-        cell.textContent = name;
         if (index < data.members.length) {
           data.members[index].name = name;
         } else if (name) {
