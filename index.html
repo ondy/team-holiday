@@ -18,6 +18,8 @@
       --school-holiday: #e5e5e5;
       --hover-highlight: #4b4f55;
       --today-highlight: #1b1b1b;
+      --member-column-width: 180px;
+      --day-cell-width: 36px;
     }
 
     body {
@@ -108,7 +110,7 @@
 
     table {
       border-collapse: collapse;
-      width: 100%;
+      width: auto;
       table-layout: fixed;
       user-select: none;
     }
@@ -126,8 +128,8 @@
     th.member-column,
     td.member-column {
       text-align: left;
-      width: 180px;
-      min-width: 180px;
+      width: var(--member-column-width);
+      min-width: var(--member-column-width);
       background: #fafafa;
       font-weight: 600;
     }
@@ -348,6 +350,7 @@
 
     .table-wrapper {
       position: relative;
+      margin-bottom: 16px;
     }
 
     .cell-selected {
@@ -357,6 +360,11 @@
     .mini-cell {
       font-size: 11px;
       color: #555;
+    }
+
+    .day-cell {
+      width: var(--day-cell-width);
+      min-width: var(--day-cell-width);
     }
 
     .member-row .delete-button {
@@ -447,6 +455,11 @@
     const currentDay = now.getDate();
     let activeMonth = 0;
     let activeYear = currentYear;
+    const MEMBER_COLUMN_WIDTH = 180;
+    const MIN_DAY_CELL_WIDTH = 34;
+    const CELL_HORIZONTAL_PADDING = 8;
+    const CELL_HORIZONTAL_BORDER = 2;
+    const CELL_BOX_EXTRA = CELL_HORIZONTAL_PADDING + CELL_HORIZONTAL_BORDER;
 
     const storageKey = "teamHolidayData";
 
@@ -461,6 +474,7 @@
     const selectedCells = new Map();
     let activeTable = null;
     let justOpenedMenu = false;
+    let resizeTimer = null;
 
     function loadData() {
       try {
@@ -726,10 +740,75 @@
       const monthData = getMonthData(activeYear, activeMonth);
       const daysInMonth = getDaysInMonth(activeYear, activeMonth);
       const dayColumns = buildDayColumns(activeYear, activeMonth);
+      const layout = getTableLayout(container);
 
-      const wrapper = document.createElement("div");
-      wrapper.className = "table-wrapper";
+      container.style.setProperty("--day-cell-width", `${layout.dayCellWidth}px`);
+      const tableSegments = splitDayColumns(dayColumns, layout.maxColumnsPerTable);
+
+      tableSegments.forEach((segment, segmentIndex) => {
+        const allowMemberEdit = segmentIndex === 0;
+        const includeNewRow = segmentIndex === 0;
+        const wrapper = document.createElement("div");
+        wrapper.className = "table-wrapper";
+        const table = buildTable(segment, {
+          allowMemberEdit,
+          includeNewRow,
+          monthData,
+          dayCellWidth: layout.dayCellWidth,
+        });
+        wrapper.appendChild(table);
+        container.appendChild(wrapper);
+        addTableHoverHighlights(table);
+        renderTodayColumnHighlight(wrapper, table, daysInMonth);
+      });
+
+      activeTable = null;
+      clearSelection();
+    }
+
+    function getTableLayout(container) {
+      const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
+      const availableWidth = Math.max(0, containerWidth - MEMBER_COLUMN_WIDTH);
+      const minCellTotal = MIN_DAY_CELL_WIDTH + CELL_BOX_EXTRA;
+      const maxColumnsPerTable = Math.max(2, Math.floor(availableWidth / minCellTotal) || 1);
+      const usableWidth = Math.max(0, availableWidth - maxColumnsPerTable * CELL_BOX_EXTRA);
+      const dayCellWidth = Math.max(24, Math.floor(usableWidth / maxColumnsPerTable));
+      return { maxColumnsPerTable, dayCellWidth };
+    }
+
+    function splitDayColumns(dayColumns, maxColumnsPerTable) {
+      if (dayColumns.length <= maxColumnsPerTable) {
+        return [dayColumns];
+      }
+      const prevColumn = dayColumns[0];
+      const nextColumn = dayColumns[dayColumns.length - 1];
+      const inMonthColumns = dayColumns.slice(1, -1);
+      const segments = [];
+
+      const firstChunkSize = Math.min(
+        Math.max(1, maxColumnsPerTable - 1),
+        Math.max(1, inMonthColumns.length - 1)
+      );
+      segments.push([prevColumn, ...inMonthColumns.slice(0, firstChunkSize)]);
+
+      let startIndex = firstChunkSize;
+      while (startIndex < inMonthColumns.length) {
+        const remaining = inMonthColumns.length - startIndex;
+        if (remaining <= maxColumnsPerTable - 1) {
+          segments.push([...inMonthColumns.slice(startIndex), nextColumn]);
+          break;
+        }
+        segments.push(inMonthColumns.slice(startIndex, startIndex + maxColumnsPerTable));
+        startIndex += maxColumnsPerTable;
+      }
+      return segments;
+    }
+
+    function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, dayCellWidth }) {
       const table = document.createElement("table");
+      const tableWidth = MEMBER_COLUMN_WIDTH + dayCellWidth * dayColumns.length;
+      table.style.width = `${tableWidth}px`;
+      table.style.minWidth = `${tableWidth}px`;
       const thead = document.createElement("thead");
       const headerRow = document.createElement("tr");
 
@@ -739,13 +818,14 @@
       memberHeader.dataset.col = "member";
       headerRow.appendChild(memberHeader);
 
-      dayColumns.forEach((dayInfo) => {
+      dayColumns.forEach((dayInfo, columnIndex) => {
         const th = document.createElement("th");
-      const baseLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
-      const dayLabel = baseLabel;
+        th.className = "day-cell";
+        const baseLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
+        const dayLabel = baseLabel;
         const weekday = dayInfo.date.toLocaleDateString("de-DE", { weekday: "short" });
         th.innerHTML = `${dayLabel}<div class="day-short">${weekday}</div>`;
-        th.dataset.col = dayInfo.colKey;
+        th.dataset.col = `col-${columnIndex}`;
         if (dayInfo.inMonth) {
           th.dataset.day = String(dayInfo.day);
         }
@@ -769,23 +849,26 @@
       table.appendChild(thead);
 
       const tbody = document.createElement("tbody");
-
       const rows = [...data.members];
-      rows.push({ name: "" });
+      if (includeNewRow) {
+        rows.push({ name: "" });
+      }
 
       rows.forEach((member, index) => {
         const tr = document.createElement("tr");
         tr.className = "member-row";
 
         const nameCell = document.createElement("td");
-        nameCell.className = "member-column member-input";
+        nameCell.className = allowMemberEdit ? "member-column member-input" : "member-column";
         nameCell.dataset.col = "member";
         const nameSpan = document.createElement("span");
         nameSpan.className = "member-name";
         nameSpan.textContent = member.name || "";
         nameCell.appendChild(nameSpan);
-        nameCell.addEventListener("click", () => editMemberName(nameCell, index));
-        if (index < data.members.length) {
+        if (allowMemberEdit) {
+          nameCell.addEventListener("click", () => editMemberName(nameCell, index));
+        }
+        if (allowMemberEdit && index < data.members.length) {
           const deleteButton = document.createElement("button");
           deleteButton.type = "button";
           deleteButton.className = "delete-button";
@@ -795,15 +878,15 @@
             removeMember(index);
           });
           nameCell.appendChild(deleteButton);
-        } else {
+        } else if (allowMemberEdit && index >= data.members.length) {
           createMemberInput(nameCell, index, "");
         }
         tr.appendChild(nameCell);
 
-        dayColumns.forEach((dayInfo) => {
+        dayColumns.forEach((dayInfo, columnIndex) => {
           const td = document.createElement("td");
-          td.className = "cell";
-          td.dataset.col = dayInfo.colKey;
+          td.className = "cell day-cell";
+          td.dataset.col = `col-${columnIndex}`;
           if (!dayInfo.inMonth) {
             td.classList.add("outside-month");
           }
@@ -872,9 +955,10 @@
       summaryLabel.className = "member-column mini-cell";
       summaryLabel.textContent = "";
       summaryRow.appendChild(summaryLabel);
-      dayColumns.forEach((dayInfo) => {
+      dayColumns.forEach((dayInfo, columnIndex) => {
         const summaryCell = document.createElement("td");
-        summaryCell.className = "mini-cell";
+        summaryCell.className = "mini-cell day-cell";
+        summaryCell.dataset.col = `col-${columnIndex}`;
         if (dayInfo.inMonth) {
           const count = data.members.reduce((total, _member, memberIndex) => {
             const value = monthData.days?.[memberIndex]?.[dayInfo.day];
@@ -889,12 +973,7 @@
       tfoot.appendChild(summaryRow);
       table.appendChild(tfoot);
 
-      wrapper.appendChild(table);
-      container.appendChild(wrapper);
-      addTableHoverHighlights(table);
-      activeTable = table;
-      clearSelection();
-      renderTodayColumnHighlight(wrapper, table, daysInMonth);
+      return table;
     }
 
     function buildDayColumns(year, monthIndex) {
@@ -1186,6 +1265,7 @@
         return;
       }
       event.preventDefault();
+      activeTable = cell.closest("table");
       clearSelection();
       isSelecting = true;
       lastSelectionEvent = event;
@@ -1386,6 +1466,17 @@
         clearSelection();
       }
     });
+
+    function handleResize() {
+      if (resizeTimer) {
+        window.clearTimeout(resizeTimer);
+      }
+      resizeTimer = window.setTimeout(() => {
+        renderCalendar();
+      }, 120);
+    }
+
+    window.addEventListener("resize", handleResize);
 
     function changeYear(delta) {
       activeYear += delta;
