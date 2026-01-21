@@ -181,6 +181,14 @@ function formatCount(value) {
   return formatted;
 }
 
+function isExcludedVacationDay(year, monthIndex, day) {
+  const date = new Date(year, monthIndex, day);
+  const isWeekend = [0, 6].includes(date.getDay());
+  const dateKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const isHoliday = holidaySet.has(dateKey);
+  return isWeekend || isHoliday;
+}
+
 function getYearStatusCounts(year) {
   const countsByMember = data.members.map(() => ({
     urlaub: 0,
@@ -190,23 +198,30 @@ function getYearStatusCounts(year) {
     gleittag: 0,
   }));
   const yearData = getYearData(year);
-  Object.values(yearData.months || {}).forEach((month) => {
+  Object.entries(yearData.months || {}).forEach(([monthIndex, month]) => {
     if (!month || !month.days) {
       return;
     }
+    const monthNumber = Number(monthIndex);
     Object.entries(month.days).forEach(([memberIndex, days]) => {
       const memberCounts = countsByMember[Number(memberIndex)];
       if (!memberCounts || !days) {
         return;
       }
-      Object.values(days).forEach((status) => {
+      Object.entries(days).forEach(([day, status]) => {
+        const dayNumber = Number(day);
+        const shouldSkipVacation = isExcludedVacationDay(year, monthNumber, dayNumber);
         switch (status) {
           case "urlaub":
-            memberCounts.urlaub += 1;
+            if (!shouldSkipVacation) {
+              memberCounts.urlaub += 1;
+            }
             break;
           case "urlaub-am":
           case "urlaub-pm":
-            memberCounts.urlaub += 0.5;
+            if (!shouldSkipVacation) {
+              memberCounts.urlaub += 0.5;
+            }
             break;
           case "krank":
             memberCounts.krank += 1;
