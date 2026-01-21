@@ -138,13 +138,16 @@ td.member-column {
   height: 110px;
   vertical-align: middle;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .metric-header span {
   display: inline-block;
   transform: rotate(180deg);
-  margin: 0 auto;
-  width: 100%;
+  margin: 0;
+  width: auto;
 }
 
 .metric-input {
@@ -193,6 +196,27 @@ td.member-input {
 .cell {
   cursor: pointer;
   height: 22px;
+}
+
+td.day-cell.weekend,
+td.day-cell.holiday {
+  position: relative;
+}
+
+td.day-cell.weekend::after,
+td.day-cell.holiday::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(180, 180, 180, 0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+
+td.day-cell.weekend > *,
+td.day-cell.holiday > * {
+  position: relative;
+  z-index: 2;
 }
 
 .vacation-cell {
