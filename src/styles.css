@@ -153,6 +153,19 @@ td.member-column {
   white-space: nowrap;
 }
 
+@supports (-webkit-touch-callout: none) {
+  .metric-header {
+    -webkit-writing-mode: horizontal-tb;
+    writing-mode: horizontal-tb;
+    text-orientation: mixed;
+  }
+
+  .metric-header span {
+    display: inline-block;
+    transform: translate(-50%, -50%) rotate(-90deg);
+  }
+}
+
 .metric-input {
   width: 100%;
   border: 1px solid #cbd5e1;
