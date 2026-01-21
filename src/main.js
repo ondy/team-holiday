@@ -426,6 +426,9 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
     const memberCounts = yearCounts?.[index];
     const tr = document.createElement("tr");
     tr.className = "member-row";
+    if (index >= data.members.length) {
+      tr.classList.add("new-member-row");
+    }
 
     const nameCell = document.createElement("td");
     nameCell.className = allowMemberEdit ? "member-column member-input" : "member-column";
@@ -992,20 +995,27 @@ function addTableHoverHighlights(table) {
   };
 
   table.addEventListener("mouseover", (event) => {
-    const cell = event.target.closest("td, th");
+    const cell = event.target.closest("td");
     if (!cell) {
       return;
     }
     clearHighlights();
     const row = cell.parentElement;
-    if (row) {
-      row.classList.add("row-highlight");
+    if (!row || row.classList.contains("new-member-row")) {
+      return;
+    }
+    if (cell.classList.contains("mini-cell") || row.parentElement?.tagName === "TFOOT") {
+      return;
+    }
+    row.classList.add("row-highlight");
+    if (!cell.classList.contains("cell")) {
+      return;
     }
     const colKey = cell.dataset.col;
     if (!colKey) {
       return;
     }
-    table.querySelectorAll(`[data-col="${colKey}"]`).forEach((colCell) => {
+    table.querySelectorAll(`td.cell[data-col="${colKey}"]`).forEach((colCell) => {
       colCell.classList.add("col-highlight");
     });
   });
