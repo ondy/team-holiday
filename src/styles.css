@@ -409,12 +409,14 @@ td.day-cell.holiday.status-gleittag > * {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid transparent;
 }
 
 .legend-item.is-highlighted {
   background: rgba(29, 111, 165, 0.12);
-  border-radius: 6px;
-  padding: 2px 6px;
+  border-color: rgba(29, 111, 165, 0.3);
 }
 
 .legend-group {
