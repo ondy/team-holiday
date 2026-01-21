@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "prebuild": "npm install --include=dev --no-audit --no-fund",
+    "build": "node ./node_modules/vite/bin/vite.js build",
     "preview": "vite preview"
   },
-  "devDependencies": {
+  "dependencies": {
     "vite": "5.4.21"
   }
 }
