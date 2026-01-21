@@ -28,9 +28,6 @@ jobs:
       - name: Install
         run: npm install
 
-      - name: Show npm cache
-        run: npm config get cache
-
       - name: Build
         run: npm run build
 
