@@ -134,8 +134,6 @@ td.member-column {
 }
 
 .metric-header {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
   letter-spacing: 0.5px;
   height: 110px;
   vertical-align: middle;
@@ -147,7 +145,7 @@ td.member-column {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) rotate(180deg);
+  transform: translate(-50%, -50%) rotate(-90deg);
   white-space: nowrap;
 }
 
