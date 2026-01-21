@@ -128,7 +128,7 @@ td.member-column {
 }
 
 .metric-cell {
-  padding: 4px 6px;
+  padding: 4px 3px;
 }
 
 .metric-header {
@@ -138,14 +138,13 @@ td.member-column {
   height: 110px;
   vertical-align: middle;
   text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .metric-header span {
   display: inline-block;
   transform: rotate(180deg);
+  margin: 0 auto;
+  width: 100%;
 }
 
 .metric-input {

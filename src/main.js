@@ -254,38 +254,13 @@ const holidayNameMap = new Map();
 updateHolidayMaps(activeYear, holidaySet, holidayNameMap);
 
 const metricColumns = [
-  { key: "vacationDays", label: "Urlaubstage", editable: true },
-  { key: "urlaub", label: "Urlaub" },
-  { key: "krank", label: "Krank" },
-  { key: "schulung", label: "Schulung" },
-  { key: "einsatz", label: "Einsatz" },
-  { key: "gleittag", label: "Gleittag" },
+  { key: "vacationDays", label: "Urlaubstage", editable: true, width: 52 },
+  { key: "urlaub", label: "Urlaub", width: 26 },
+  { key: "krank", label: "Krank", width: 26 },
+  { key: "schulung", label: "Schulung", width: 26 },
+  { key: "einsatz", label: "Einsatz", width: 26 },
+  { key: "gleittag", label: "Gleittag", width: 26 },
 ];
-
-function getTextWidth(text, font) {
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  context.font = font;
-  return context.measureText(text).width;
-}
-
-function getMetricColumnWidths(container) {
-  const bodyStyle = window.getComputedStyle(container);
-  const fontFamily = bodyStyle.fontFamily || "sans-serif";
-  const headerFont = `600 12px ${fontFamily}`;
-  const inputFont = `11px ${fontFamily}`;
-  const padding = 12;
-  const widths = {};
-
-  metricColumns.forEach((column) => {
-    const labelWidth = getTextWidth(column.label, headerFont);
-    const sampleValue = column.editable ? "88,5" : "888,5";
-    const valueWidth = getTextWidth(sampleValue, inputFont);
-    widths[column.key] = Math.ceil(Math.max(labelWidth, valueWidth) + padding);
-  });
-
-  return widths;
-}
 
 function buildTabs() {
   const container = document.getElementById("month-tabs");
@@ -315,8 +290,7 @@ function renderCalendar() {
   const monthData = getMonthData(activeYear, activeMonth);
   const daysInMonth = getDaysInMonth(activeYear, activeMonth);
   const dayColumns = buildDayColumns(activeYear, activeMonth);
-  const metricWidths = getMetricColumnWidths(container);
-  const layout = getTableLayout(container, metricWidths);
+  const layout = getTableLayout(container);
   const yearCounts = getYearStatusCounts(activeYear);
 
   container.style.setProperty("--day-cell-width", `${layout.dayCellWidth}px`);
@@ -332,7 +306,6 @@ function renderCalendar() {
       includeNewRow,
       yearData,
       yearCounts,
-      metricWidths,
       monthData,
       dayCellWidth: layout.dayCellWidth,
     });
@@ -346,9 +319,9 @@ function renderCalendar() {
   clearSelection();
 }
 
-function getTableLayout(container, metricWidths) {
+function getTableLayout(container) {
   const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
-  const metricWidth = metricColumns.reduce((total, column) => total + (metricWidths[column.key] || METRIC_COLUMN_WIDTH), 0);
+  const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
   const availableWidth = Math.max(0, containerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
   const minCellTotal = MIN_DAY_CELL_WIDTH + CELL_BOX_EXTRA;
   const maxColumnsPerTable = Math.max(2, Math.floor(availableWidth / minCellTotal) || 1);
@@ -385,9 +358,9 @@ function splitDayColumns(dayColumns, maxColumnsPerTable) {
   return segments;
 }
 
-function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yearData, yearCounts, metricWidths, dayCellWidth }) {
+function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yearData, yearCounts, dayCellWidth }) {
   const table = document.createElement("table");
-  const metricWidth = metricColumns.reduce((total, column) => total + (metricWidths[column.key] || METRIC_COLUMN_WIDTH), 0);
+  const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
   const tableWidth = MEMBER_COLUMN_WIDTH + metricWidth + dayCellWidth * dayColumns.length;
   table.style.width = `${tableWidth}px`;
   table.style.minWidth = `${tableWidth}px`;
@@ -404,7 +377,7 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
     const th = document.createElement("th");
     th.className = "metric-cell metric-header";
     th.dataset.col = `metric-${column.key}`;
-    const columnWidth = metricWidths[column.key] || METRIC_COLUMN_WIDTH;
+    const columnWidth = column.width || METRIC_COLUMN_WIDTH;
     th.style.width = `${columnWidth}px`;
     th.style.minWidth = `${columnWidth}px`;
     const label = document.createElement("span");
@@ -483,7 +456,7 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
       const td = document.createElement("td");
       td.className = "metric-cell";
       td.dataset.col = `metric-${column.key}`;
-      const columnWidth = metricWidths[column.key] || METRIC_COLUMN_WIDTH;
+      const columnWidth = column.width || METRIC_COLUMN_WIDTH;
       td.style.width = `${columnWidth}px`;
       td.style.minWidth = `${columnWidth}px`;
       if (column.editable) {
@@ -595,7 +568,7 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
     const summaryCell = document.createElement("td");
     summaryCell.className = "mini-cell metric-cell";
     summaryCell.dataset.col = `metric-${column.key}`;
-    const columnWidth = metricWidths[column.key] || METRIC_COLUMN_WIDTH;
+    const columnWidth = column.width || METRIC_COLUMN_WIDTH;
     summaryCell.style.width = `${columnWidth}px`;
     summaryCell.style.minWidth = `${columnWidth}px`;
     summaryRow.appendChild(summaryCell);
