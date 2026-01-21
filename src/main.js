@@ -34,7 +34,8 @@ let resizeTimer = null;
 
 const buildInfo = document.getElementById("build-info");
 if (buildInfo) {
-  buildInfo.textContent = `Branch ${__BUILD_BRANCH__} • Build ${__BUILD_TIME__}`;
+  const branchName = __BUILD_BRANCH__.split("/").filter(Boolean).pop() ?? __BUILD_BRANCH__;
+  buildInfo.textContent = `${branchName} • ${__BUILD_TIME__}`;
 }
 
 const legendItemsByStatus = new Map(
