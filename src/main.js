@@ -21,6 +21,7 @@ const statusLabelMap = new Map(statusOptions.map((option) => [option.value, opti
 
 const data = loadData(currentYear);
 const schoolHolidayDates = new Set();
+const schoolHolidayInfoMap = new Map();
 const undoStack = [];
 const redoStack = [];
 let isSelecting = false;
@@ -123,17 +124,35 @@ function loadSchoolHolidays(year) {
     .catch(() => {});
 }
 
+function formatHolidayDate(date) {
+  return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
+}
+
 function applySchoolHolidays(entries) {
   schoolHolidayDates.clear();
+  schoolHolidayInfoMap.clear();
   if (!Array.isArray(entries)) {
     return;
   }
   entries.forEach((entry) => {
+    const name = entry?.name || entry?.type || "Ferien";
     const start = new Date(entry.start);
     const end = new Date(entry.end);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) {
+      return;
+    }
+    const holidayLabel = `${name} (${formatHolidayDate(start)} - ${formatHolidayDate(end)})`;
     for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
       const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
       schoolHolidayDates.add(key);
+      const existingLabel = schoolHolidayInfoMap.get(key);
+      if (existingLabel) {
+        if (!existingLabel.includes(holidayLabel)) {
+          schoolHolidayInfoMap.set(key, `${existingLabel}\n${holidayLabel}`);
+        }
+      } else {
+        schoolHolidayInfoMap.set(key, holidayLabel);
+      }
     }
   });
 }
@@ -438,8 +457,16 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
       th.classList.add("outside-month");
     }
     const holidayName = holidayNameMap.get(dayInfo.key);
-    if (holidayName) {
-      th.title = holidayName;
+    const schoolHolidayInfo = schoolHolidayInfoMap.get(dayInfo.key);
+    if (holidayName || schoolHolidayInfo) {
+      const titleParts = [];
+      if (holidayName) {
+        titleParts.push(holidayName);
+      }
+      if (schoolHolidayInfo) {
+        titleParts.push(schoolHolidayInfo);
+      }
+      th.title = titleParts.join("\n");
     }
     if (dayInfo.position === "start") {
       th.classList.add("month-boundary-left");
