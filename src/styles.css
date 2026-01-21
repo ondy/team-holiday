@@ -127,6 +127,34 @@ td.member-column {
   font-weight: 600;
 }
 
+.metric-cell {
+  width: 36px;
+  min-width: 36px;
+  padding: 4px 2px;
+}
+
+.metric-header {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.5px;
+  height: 110px;
+  vertical-align: bottom;
+}
+
+.metric-header span {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+
+.metric-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px;
+  text-align: center;
+}
+
 td.member-input {
   font-weight: 400;
   cursor: text;
