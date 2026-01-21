@@ -197,23 +197,59 @@ td.member-input {
   height: 22px;
 }
 
-td.day-cell.weekend,
-td.day-cell.holiday {
+td.day-cell.weekend.status-urlaub,
+td.day-cell.holiday.status-urlaub,
+td.day-cell.weekend.status-urlaub-am,
+td.day-cell.holiday.status-urlaub-am,
+td.day-cell.weekend.status-urlaub-pm,
+td.day-cell.holiday.status-urlaub-pm,
+td.day-cell.weekend.status-krank,
+td.day-cell.holiday.status-krank,
+td.day-cell.weekend.status-schulung,
+td.day-cell.holiday.status-schulung,
+td.day-cell.weekend.status-einsatz,
+td.day-cell.holiday.status-einsatz,
+td.day-cell.weekend.status-gleittag,
+td.day-cell.holiday.status-gleittag {
   position: relative;
 }
 
-td.day-cell.weekend::after,
-td.day-cell.holiday::after {
+td.day-cell.weekend.status-urlaub::after,
+td.day-cell.holiday.status-urlaub::after,
+td.day-cell.weekend.status-urlaub-am::after,
+td.day-cell.holiday.status-urlaub-am::after,
+td.day-cell.weekend.status-urlaub-pm::after,
+td.day-cell.holiday.status-urlaub-pm::after,
+td.day-cell.weekend.status-krank::after,
+td.day-cell.holiday.status-krank::after,
+td.day-cell.weekend.status-schulung::after,
+td.day-cell.holiday.status-schulung::after,
+td.day-cell.weekend.status-einsatz::after,
+td.day-cell.holiday.status-einsatz::after,
+td.day-cell.weekend.status-gleittag::after,
+td.day-cell.holiday.status-gleittag::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(160, 160, 160, 0.2);
+  background: rgba(120, 120, 120, 0.35);
   pointer-events: none;
   z-index: 1;
 }
 
-td.day-cell.weekend > *,
-td.day-cell.holiday > * {
+td.day-cell.weekend.status-urlaub > *,
+td.day-cell.holiday.status-urlaub > *,
+td.day-cell.weekend.status-urlaub-am > *,
+td.day-cell.holiday.status-urlaub-am > *,
+td.day-cell.weekend.status-urlaub-pm > *,
+td.day-cell.holiday.status-urlaub-pm > *,
+td.day-cell.weekend.status-krank > *,
+td.day-cell.holiday.status-krank > *,
+td.day-cell.weekend.status-schulung > *,
+td.day-cell.holiday.status-schulung > *,
+td.day-cell.weekend.status-einsatz > *,
+td.day-cell.holiday.status-einsatz > *,
+td.day-cell.weekend.status-gleittag > *,
+td.day-cell.holiday.status-gleittag > * {
   position: relative;
   z-index: 2;
 }
