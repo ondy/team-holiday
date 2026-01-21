@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "prebuild": "npm install --include=dev --no-audit --no-fund",
-    "dev": "./node_modules/.bin/vite",
-    "build": "./node_modules/.bin/vite build",
-    "preview": "./node_modules/.bin/vite preview"
+    "dev": "npm exec -- vite",
+    "build": "npm exec -- vite build",
+    "preview": "npm exec -- vite preview"
   },
   "devDependencies": {
     "vite": "5.4.21"
