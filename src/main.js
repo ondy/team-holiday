@@ -17,6 +17,7 @@ const currentMonthIndex = now.getMonth();
 const currentDay = now.getDate();
 let activeMonth = 0;
 let activeYear = currentYear;
+const statusLabelMap = new Map(statusOptions.map((option) => [option.value, option.label]));
 
 const data = loadData(currentYear);
 const schoolHolidayDates = new Set();
@@ -30,6 +31,11 @@ const selectedCells = new Map();
 let activeTable = null;
 let justOpenedMenu = false;
 let resizeTimer = null;
+
+const buildInfo = document.getElementById("build-info");
+if (buildInfo) {
+  buildInfo.textContent = `Branch ${__BUILD_BRANCH__} • Build ${__BUILD_TIME__}`;
+}
 
 function recordUndoState() {
   undoStack.push(snapshotData(data));
@@ -523,6 +529,10 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
       }
       if (status) {
         td.classList.add(`status-${status}`);
+        const statusLabel = statusLabelMap.get(status);
+        if (statusLabel) {
+          td.title = statusLabel;
+        }
       }
 
       if (status && isVacationStatus(status)) {
@@ -830,7 +840,7 @@ function isWeekendOrHoliday(day) {
 }
 
 function isVacationStatus(status) {
-  return ["urlaub", "urlaub-am", "urlaub-pm"].includes(status);
+  return ["urlaub", "urlaub-am", "urlaub-pm", "sonderurlaub"].includes(status);
 }
 
 function constrainMenuToViewport(menu) {

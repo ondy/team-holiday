@@ -1,6 +1,7 @@
 export const statusOptions = [
   { label: "nichts", value: "", className: "" },
   { label: "Urlaub", value: "urlaub", className: "status-urlaub" },
+  { label: "Sonderurlaub", value: "sonderurlaub", className: "status-sonderurlaub" },
   { label: "Urlaub vormittags", value: "urlaub-am", className: "status-urlaub-am" },
   { label: "Urlaub nachmittags", value: "urlaub-pm", className: "status-urlaub-pm" },
   { label: "krank", value: "krank", className: "status-krank" },

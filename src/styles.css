@@ -4,6 +4,7 @@
   --grid-border: #d6d6d6;
   --status-urlaub: #7bd889;
   --status-urlaub-half: #b7f0c0;
+  --status-sonderurlaub: #f4b5ff;
   --status-krank: #ff9b9b;
   --status-schulung: #9fb7ff;
   --status-einsatz: #ffd18a;
@@ -195,11 +196,13 @@ td.member-input {
 
 .cell {
   cursor: pointer;
-  height: 22px;
+  height: 28px;
 }
 
 td.day-cell.weekend.status-urlaub,
 td.day-cell.holiday.status-urlaub,
+td.day-cell.weekend.status-sonderurlaub,
+td.day-cell.holiday.status-sonderurlaub,
 td.day-cell.weekend.status-urlaub-am,
 td.day-cell.holiday.status-urlaub-am,
 td.day-cell.weekend.status-urlaub-pm,
@@ -217,6 +220,8 @@ td.day-cell.holiday.status-gleittag {
 
 td.day-cell.weekend.status-urlaub::after,
 td.day-cell.holiday.status-urlaub::after,
+td.day-cell.weekend.status-sonderurlaub::after,
+td.day-cell.holiday.status-sonderurlaub::after,
 td.day-cell.weekend.status-urlaub-am::after,
 td.day-cell.holiday.status-urlaub-am::after,
 td.day-cell.weekend.status-urlaub-pm::after,
@@ -239,6 +244,8 @@ td.day-cell.holiday.status-gleittag::after {
 
 td.day-cell.weekend.status-urlaub > *,
 td.day-cell.holiday.status-urlaub > *,
+td.day-cell.weekend.status-sonderurlaub > *,
+td.day-cell.holiday.status-sonderurlaub > *,
 td.day-cell.weekend.status-urlaub-am > *,
 td.day-cell.holiday.status-urlaub-am > *,
 td.day-cell.weekend.status-urlaub-pm > *,
@@ -361,6 +368,10 @@ td.day-cell.holiday.status-gleittag > * {
   background: var(--status-urlaub-half);
 }
 
+.status-sonderurlaub {
+  background: var(--status-sonderurlaub);
+}
+
 .status-urlaub-am {
   background: linear-gradient(135deg, var(--status-urlaub-half) 0 50%, transparent 50% 100%);
 }
@@ -411,6 +422,14 @@ td.day-cell.holiday.status-gleittag > * {
   width: 1px;
   height: 20px;
   background: #c7c7c7;
+}
+
+.build-info {
+  position: fixed;
+  left: 12px;
+  bottom: 10px;
+  font-size: 11px;
+  color: #6b7280;
 }
 
 .row-highlight td,
