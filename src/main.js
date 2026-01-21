@@ -511,14 +511,15 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
 
       const targetMonthData = getMonthData(dayInfo.year, dayInfo.monthIndex);
       const status = targetMonthData.days?.[index]?.[dayInfo.day];
-      if (status) {
-        td.classList.add(`status-${status}`);
-      } else if (isHoliday) {
+      if (isHoliday) {
         td.classList.add("holiday");
       } else if (isWeekend) {
         td.classList.add("weekend");
       } else if (schoolHolidayDates.has(dateKey)) {
         td.classList.add("school-holiday");
+      }
+      if (status) {
+        td.classList.add(`status-${status}`);
       }
 
       if (status && isVacationStatus(status)) {
