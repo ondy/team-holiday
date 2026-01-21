@@ -12,15 +12,7 @@ const buildBranch = (() => {
 })();
 
 const buildTimestamp = (() => {
-  const now = new Date();
-  return now.toLocaleString("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "short",
-  });
+  return new Date().toISOString();
 })();
 
 export default defineConfig({

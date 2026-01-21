@@ -35,7 +35,18 @@ let resizeTimer = null;
 const buildInfo = document.getElementById("build-info");
 if (buildInfo) {
   const branchName = __BUILD_BRANCH__.split("/").filter(Boolean).pop() ?? __BUILD_BRANCH__;
-  buildInfo.textContent = `${branchName} • ${__BUILD_TIME__}`;
+  const buildDate = new Date(__BUILD_TIME__);
+  const timeLabel = Number.isNaN(buildDate.valueOf())
+    ? __BUILD_TIME__
+    : buildDate.toLocaleString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZoneName: "short",
+      });
+  buildInfo.textContent = `${branchName} • ${timeLabel}`;
 }
 
 const legendItemsByStatus = new Map(
