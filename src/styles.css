@@ -413,7 +413,7 @@ td.day-cell.holiday.status-gleittag > * {
   background: #c7c7c7;
 }
 
-.row-highlight td.cell,
+.row-highlight td,
 .col-highlight {
   box-shadow: inset 0 0 0 9999px var(--weekend-vacation-overlay);
 }
