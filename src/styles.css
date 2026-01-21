@@ -1,0 +1,380 @@
+:root {
+  --weekend: #d9f0ff;
+  --holiday: #fff6cc;
+  --grid-border: #d6d6d6;
+  --status-urlaub: #7bd889;
+  --status-urlaub-half: #b7f0c0;
+  --status-krank: #ff9b9b;
+  --status-schulung: #9fb7ff;
+  --status-einsatz: #ffd18a;
+  --status-gleittag: #9be7e7;
+  --school-holiday: #e5e5e5;
+  --hover-highlight: #4b4f55;
+  --today-highlight: #1b1b1b;
+  --member-column-width: 180px;
+  --day-cell-width: 36px;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin: 24px;
+  color: #1f1f1f;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+h1 {
+  margin-bottom: 16px;
+}
+
+.year-controls {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.year-controls h1 {
+  margin: 0;
+}
+
+.year-controls button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-button {
+  border: 1px solid #bfc9d4;
+  background: #f3f5f7;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  background: #1d6fa5;
+  color: white;
+  border-color: #1d6fa5;
+}
+
+.tab-button.current-month {
+  border-width: 2px;
+  border-color: #000;
+}
+
+table {
+  border-collapse: collapse;
+  width: auto;
+  table-layout: fixed;
+  user-select: none;
+}
+
+th,
+td {
+  border: 1px solid var(--grid-border);
+  text-align: center;
+  min-width: 10px;
+  min-height: 10px;
+  padding: 4px;
+  font-size: 12px;
+}
+
+th.member-column,
+td.member-column {
+  text-align: left;
+  width: var(--member-column-width);
+  min-width: var(--member-column-width);
+  background: #fafafa;
+  font-weight: 600;
+}
+
+td.member-input {
+  font-weight: 400;
+  cursor: text;
+}
+
+.member-input input {
+  width: 95%;
+  font-size: 12px;
+  padding: 2px 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.member-input .input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.member-input .ok-button {
+  border: none;
+  background: #1d6fa5;
+  color: white;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.member-input input::placeholder {
+  color: #9ca3af;
+}
+
+.cell {
+  cursor: pointer;
+  height: 22px;
+}
+
+.vacation-cell {
+  position: relative;
+}
+
+.vacation-cell .approval-toggle {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: none;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px;
+  z-index: 3;
+}
+
+.vacation-cell:hover .approval-toggle {
+  display: block;
+}
+
+.vacation-approved::after {
+  content: "✓";
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 12px;
+  color: #1d6fa5;
+  font-weight: 700;
+}
+
+.day-short {
+  font-size: 10px;
+  color: #555;
+  line-height: 1.1;
+}
+
+.weekend {
+  background: var(--weekend);
+}
+
+.holiday {
+  background: var(--holiday);
+}
+
+.school-holiday {
+  background: var(--school-holiday);
+}
+
+.context-menu {
+  position: absolute;
+  background: white;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  display: none;
+  z-index: 20;
+  min-width: 180px;
+}
+
+.outside-month {
+  opacity: 0.8;
+}
+
+.month-boundary-left {
+  border-left: 3px solid #111827;
+}
+
+.month-boundary-right {
+  border-right: 3px solid #111827;
+}
+
+.context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.context-menu button:hover {
+  background: #f0f4f8;
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  display: inline-block;
+  border: 1px solid #a3a3a3;
+}
+
+.status-urlaub {
+  background: var(--status-urlaub);
+}
+
+.status-urlaub-half {
+  background: var(--status-urlaub-half);
+}
+
+.status-urlaub-am {
+  background: linear-gradient(135deg, var(--status-urlaub-half) 0 50%, transparent 50% 100%);
+}
+
+.status-urlaub-pm {
+  background: linear-gradient(135deg, transparent 0 50%, var(--status-urlaub-half) 50% 100%);
+}
+
+.status-krank {
+  background: var(--status-krank);
+}
+
+.status-schulung {
+  background: var(--status-schulung);
+}
+
+.status-einsatz {
+  background: var(--status-einsatz);
+}
+
+.status-gleittag {
+  background: var(--status-gleittag);
+}
+
+.legend {
+  margin-top: 12px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  align-items: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.legend-divider {
+  width: 1px;
+  height: 20px;
+  background: #c7c7c7;
+}
+
+.row-highlight td,
+.row-highlight th {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.col-highlight {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.today-column-highlight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border: 2px solid var(--today-highlight);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.table-wrapper {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.cell-selected {
+  background-image: linear-gradient(rgba(29, 111, 165, 0.25), rgba(29, 111, 165, 0.25));
+}
+
+.mini-cell {
+  font-size: 11px;
+  color: #555;
+}
+
+.day-cell {
+  width: var(--day-cell-width);
+  min-width: var(--day-cell-width);
+}
+
+.member-row .delete-button {
+  margin-left: 8px;
+  border: none;
+  background: #ef4444;
+  color: white;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.member-row:hover .delete-button {
+  opacity: 1;
+  pointer-events: auto;
+}
