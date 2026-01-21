@@ -134,10 +134,6 @@ td.member-column {
 }
 
 .metric-header {
-  -webkit-writing-mode: vertical-rl;
-  -webkit-text-orientation: mixed;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
   letter-spacing: 0.5px;
   height: 110px;
   vertical-align: middle;
@@ -149,21 +145,8 @@ td.member-column {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) rotate(180deg);
+  transform: translate(-50%, -50%) rotate(-90deg);
   white-space: nowrap;
-}
-
-@supports (-webkit-touch-callout: none) {
-  .metric-header {
-    -webkit-writing-mode: horizontal-tb;
-    writing-mode: horizontal-tb;
-    text-orientation: mixed;
-  }
-
-  .metric-header span {
-    display: inline-block;
-    transform: translate(-50%, -50%) rotate(-90deg);
-  }
 }
 
 .metric-input {
