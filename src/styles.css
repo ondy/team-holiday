@@ -128,9 +128,7 @@ td.member-column {
 }
 
 .metric-cell {
-  width: 36px;
-  min-width: 36px;
-  padding: 4px 2px;
+  padding: 4px 6px;
 }
 
 .metric-header {
@@ -138,7 +136,11 @@ td.member-column {
   text-orientation: mixed;
   letter-spacing: 0.5px;
   height: 110px;
-  vertical-align: bottom;
+  vertical-align: middle;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .metric-header span {
@@ -151,8 +153,9 @@ td.member-column {
   border: 1px solid #cbd5e1;
   border-radius: 4px;
   font-size: 11px;
-  padding: 2px;
+  padding: 2px 4px;
   text-align: center;
+  box-sizing: border-box;
 }
 
 td.member-input {
