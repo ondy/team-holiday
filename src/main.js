@@ -17,6 +17,7 @@ const currentMonthIndex = now.getMonth();
 const currentDay = now.getDate();
 let activeMonth = 0;
 let activeYear = currentYear;
+const statusLabelMap = new Map(statusOptions.map((option) => [option.value, option.label]));
 
 const data = loadData(currentYear);
 const schoolHolidayDates = new Set();
@@ -30,6 +31,23 @@ const selectedCells = new Map();
 let activeTable = null;
 let justOpenedMenu = false;
 let resizeTimer = null;
+
+const buildInfo = document.getElementById("build-info");
+if (buildInfo) {
+  buildInfo.textContent = `Branch ${__BUILD_BRANCH__} • Build ${__BUILD_TIME__}`;
+}
+
+const legendItemsByStatus = new Map(
+  Array.from(document.querySelectorAll(".legend-item[data-status]")).map((item) => [item.dataset.status, item])
+);
+
+function setLegendHighlight(status, isActive) {
+  const item = legendItemsByStatus.get(status);
+  if (!item) {
+    return;
+  }
+  item.classList.toggle("is-highlighted", isActive);
+}
 
 function recordUndoState() {
   undoStack.push(snapshotData(data));
@@ -192,6 +210,7 @@ function isExcludedVacationDay(year, monthIndex, day) {
 function getYearStatusCounts(year) {
   const countsByMember = data.members.map(() => ({
     urlaub: 0,
+    sonderurlaub: 0,
     krank: 0,
     schulung: 0,
     einsatz: 0,
@@ -215,6 +234,11 @@ function getYearStatusCounts(year) {
           case "urlaub":
             if (!shouldSkipVacation) {
               memberCounts.urlaub += 1;
+            }
+            break;
+          case "sonderurlaub":
+            if (!shouldSkipVacation) {
+              memberCounts.sonderurlaub += 1;
             }
             break;
           case "urlaub-am":
@@ -256,6 +280,7 @@ updateHolidayMaps(activeYear, holidaySet, holidayNameMap);
 const metricColumns = [
   { key: "vacationDays", label: "Urlaubstage", editable: true, width: 52 },
   { key: "urlaub", label: "Urlaub", width: 26 },
+  { key: "sonderurlaub", label: "Sonderurlaub", width: 26 },
   { key: "krank", label: "Krank", width: 26 },
   { key: "schulung", label: "Schulung", width: 26 },
   { key: "einsatz", label: "Einsatz", width: 26 },
@@ -523,6 +548,11 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
       }
       if (status) {
         td.classList.add(`status-${status}`);
+        td.dataset.status = status;
+        const statusLabel = statusLabelMap.get(status);
+        if (statusLabel) {
+          td.title = statusLabel;
+        }
       }
 
       if (status && isVacationStatus(status)) {
@@ -553,6 +583,10 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
         td.dataset.day = dayInfo.day;
         td.addEventListener("mousedown", (event) => handleCellMouseDown(event, td));
         td.addEventListener("mouseover", () => handleCellMouseOver(td));
+        if (status) {
+          td.addEventListener("mouseenter", () => setLegendHighlight(status, true));
+          td.addEventListener("mouseleave", () => setLegendHighlight(status, false));
+        }
       }
       tr.appendChild(td);
     });
@@ -830,7 +864,7 @@ function isWeekendOrHoliday(day) {
 }
 
 function isVacationStatus(status) {
-  return ["urlaub", "urlaub-am", "urlaub-pm"].includes(status);
+  return ["urlaub", "urlaub-am", "urlaub-pm", "sonderurlaub"].includes(status);
 }
 
 function constrainMenuToViewport(menu) {
