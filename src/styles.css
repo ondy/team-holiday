@@ -411,6 +411,12 @@ td.day-cell.holiday.status-gleittag > * {
   gap: 6px;
 }
 
+.legend-item.is-highlighted {
+  background: rgba(29, 111, 165, 0.12);
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+
 .legend-group {
   display: flex;
   gap: 12px;
