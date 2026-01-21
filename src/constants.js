@@ -27,6 +27,7 @@ export const monthNames = [
 export const storageKey = "teamHolidayData";
 
 export const MEMBER_COLUMN_WIDTH = 180;
+export const METRIC_COLUMN_WIDTH = 36;
 export const MIN_DAY_CELL_WIDTH = 34;
 export const CELL_HORIZONTAL_PADDING = 8;
 export const CELL_HORIZONTAL_BORDER = 2;

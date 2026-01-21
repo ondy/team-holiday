@@ -51,6 +51,9 @@ export function normalizeData(stored, currentYear) {
     if (!yearData.months) {
       yearData.months = {};
     }
+    if (!yearData.vacationDays) {
+      yearData.vacationDays = {};
+    }
     Object.values(yearData.months).forEach((month) => {
       if (month && month.members) {
         delete month.members;
@@ -101,6 +104,16 @@ export function sortMembersAndReindex(targetData) {
   targetData.members = membersWithIndex.map(({ name }) => ({ name }));
 
   Object.values(targetData.years || {}).forEach((yearData) => {
+    if (yearData.vacationDays) {
+      const reorderedVacationDays = {};
+      Object.entries(yearData.vacationDays).forEach(([memberIndex, value]) => {
+        const newIndex = indexMap.get(Number(memberIndex));
+        if (newIndex !== undefined) {
+          reorderedVacationDays[newIndex] = value;
+        }
+      });
+      yearData.vacationDays = reorderedVacationDays;
+    }
     if (!yearData.months) {
       return;
     }

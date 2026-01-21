@@ -35,6 +35,7 @@ export function getHolidays(year) {
   const easter = getEasterSunday(year);
   const movable = [
     { date: offsetDate(easter, 0), name: "Ostersonntag" },
+    { date: offsetDate(easter, -2), name: "Karfreitag" },
     { date: offsetDate(easter, 1), name: "Ostermontag" },
     { date: offsetDate(easter, 39), name: "Christi Himmelfahrt" },
     { date: offsetDate(easter, 49), name: "Pfingstsonntag" },

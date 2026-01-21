@@ -3,6 +3,7 @@ import {
   CELL_HORIZONTAL_BORDER,
   CELL_HORIZONTAL_PADDING,
   MEMBER_COLUMN_WIDTH,
+  METRIC_COLUMN_WIDTH,
   MIN_DAY_CELL_WIDTH,
   monthNames,
   statusOptions,
@@ -108,10 +109,7 @@ function applySchoolHolidays(entries) {
 }
 
 function getMonthData(year, monthIndex) {
-  if (!data.years[year]) {
-    data.years[year] = { months: {} };
-  }
-  const yearData = data.years[year];
+  const yearData = getYearData(year);
   if (!yearData.months[monthIndex]) {
     yearData.months[monthIndex] = { days: {}, approved: {} };
   } else if (!yearData.months[monthIndex].days) {
@@ -123,6 +121,129 @@ function getMonthData(year, monthIndex) {
   return yearData.months[monthIndex];
 }
 
+function getYearData(year) {
+  if (!data.years[year]) {
+    const closestYear = findClosestYearWithVacationDays(year);
+    data.years[year] = {
+      months: {},
+      vacationDays: closestYear ? { ...data.years[closestYear].vacationDays } : {},
+    };
+  }
+  const yearData = data.years[year];
+  if (!yearData.months) {
+    yearData.months = {};
+  }
+  if (!yearData.vacationDays) {
+    const closestYear = findClosestYearWithVacationDays(year);
+    yearData.vacationDays = closestYear ? { ...data.years[closestYear].vacationDays } : {};
+  }
+  return yearData;
+}
+
+function findClosestYearWithVacationDays(targetYear) {
+  const years = Object.keys(data.years)
+    .map((year) => Number(year))
+    .filter((year) => Number.isFinite(year) && data.years[year]?.vacationDays);
+  if (!years.length) {
+    return null;
+  }
+  return years.reduce((closest, year) => {
+    if (closest === null) {
+      return year;
+    }
+    const distance = Math.abs(year - targetYear);
+    const closestDistance = Math.abs(closest - targetYear);
+    if (distance < closestDistance) {
+      return year;
+    }
+    if (distance === closestDistance) {
+      return year < closest ? year : closest;
+    }
+    return closest;
+  }, null);
+}
+
+function parseVacationValue(value) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const normalized = trimmed.replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatCount(value) {
+  if (!value) {
+    return "";
+  }
+  const formatted = Number.isInteger(value) ? String(value) : String(value).replace(".", ",");
+  return formatted;
+}
+
+function isExcludedVacationDay(year, monthIndex, day) {
+  const date = new Date(year, monthIndex, day);
+  const isWeekend = [0, 6].includes(date.getDay());
+  const dateKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const isHoliday = holidaySet.has(dateKey);
+  return isWeekend || isHoliday;
+}
+
+function getYearStatusCounts(year) {
+  const countsByMember = data.members.map(() => ({
+    urlaub: 0,
+    krank: 0,
+    schulung: 0,
+    einsatz: 0,
+    gleittag: 0,
+  }));
+  const yearData = getYearData(year);
+  Object.entries(yearData.months || {}).forEach(([monthIndex, month]) => {
+    if (!month || !month.days) {
+      return;
+    }
+    const monthNumber = Number(monthIndex);
+    Object.entries(month.days).forEach(([memberIndex, days]) => {
+      const memberCounts = countsByMember[Number(memberIndex)];
+      if (!memberCounts || !days) {
+        return;
+      }
+      Object.entries(days).forEach(([day, status]) => {
+        const dayNumber = Number(day);
+        const shouldSkipVacation = isExcludedVacationDay(year, monthNumber, dayNumber);
+        switch (status) {
+          case "urlaub":
+            if (!shouldSkipVacation) {
+              memberCounts.urlaub += 1;
+            }
+            break;
+          case "urlaub-am":
+          case "urlaub-pm":
+            if (!shouldSkipVacation) {
+              memberCounts.urlaub += 0.5;
+            }
+            break;
+          case "krank":
+            memberCounts.krank += 1;
+            break;
+          case "schulung":
+            memberCounts.schulung += 1;
+            break;
+          case "einsatz":
+            memberCounts.einsatz += 1;
+            break;
+          case "gleittag":
+            memberCounts.gleittag += 1;
+            break;
+          default:
+            break;
+        }
+      });
+    });
+  });
+  return countsByMember;
+}
+
 function getDaysInMonth(year, monthIndex) {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
@@ -131,6 +252,15 @@ const holidaySet = new Set();
 const holidayNameMap = new Map();
 
 updateHolidayMaps(activeYear, holidaySet, holidayNameMap);
+
+const metricColumns = [
+  { key: "vacationDays", label: "Urlaubstage", editable: true, width: 52 },
+  { key: "urlaub", label: "Urlaub", width: 26 },
+  { key: "krank", label: "Krank", width: 26 },
+  { key: "schulung", label: "Schulung", width: 26 },
+  { key: "einsatz", label: "Einsatz", width: 26 },
+  { key: "gleittag", label: "Gleittag", width: 26 },
+];
 
 function buildTabs() {
   const container = document.getElementById("month-tabs");
@@ -156,10 +286,12 @@ function renderCalendar() {
   const container = document.getElementById("calendar-container");
   container.innerHTML = "";
 
+  const yearData = getYearData(activeYear);
   const monthData = getMonthData(activeYear, activeMonth);
   const daysInMonth = getDaysInMonth(activeYear, activeMonth);
   const dayColumns = buildDayColumns(activeYear, activeMonth);
   const layout = getTableLayout(container);
+  const yearCounts = getYearStatusCounts(activeYear);
 
   container.style.setProperty("--day-cell-width", `${layout.dayCellWidth}px`);
   const tableSegments = splitDayColumns(dayColumns, layout.maxColumnsPerTable);
@@ -172,6 +304,8 @@ function renderCalendar() {
     const table = buildTable(segment, {
       allowMemberEdit,
       includeNewRow,
+      yearData,
+      yearCounts,
       monthData,
       dayCellWidth: layout.dayCellWidth,
     });
@@ -187,7 +321,8 @@ function renderCalendar() {
 
 function getTableLayout(container) {
   const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
-  const availableWidth = Math.max(0, containerWidth - MEMBER_COLUMN_WIDTH);
+  const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
+  const availableWidth = Math.max(0, containerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
   const minCellTotal = MIN_DAY_CELL_WIDTH + CELL_BOX_EXTRA;
   const maxColumnsPerTable = Math.max(2, Math.floor(availableWidth / minCellTotal) || 1);
   const usableWidth = Math.max(0, availableWidth - maxColumnsPerTable * CELL_BOX_EXTRA);
@@ -223,9 +358,10 @@ function splitDayColumns(dayColumns, maxColumnsPerTable) {
   return segments;
 }
 
-function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, dayCellWidth }) {
+function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yearData, yearCounts, dayCellWidth }) {
   const table = document.createElement("table");
-  const tableWidth = MEMBER_COLUMN_WIDTH + dayCellWidth * dayColumns.length;
+  const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
+  const tableWidth = MEMBER_COLUMN_WIDTH + metricWidth + dayCellWidth * dayColumns.length;
   table.style.width = `${tableWidth}px`;
   table.style.minWidth = `${tableWidth}px`;
   const thead = document.createElement("thead");
@@ -236,6 +372,19 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, day
   memberHeader.textContent = "";
   memberHeader.dataset.col = "member";
   headerRow.appendChild(memberHeader);
+
+  metricColumns.forEach((column) => {
+    const th = document.createElement("th");
+    th.className = "metric-cell metric-header";
+    th.dataset.col = `metric-${column.key}`;
+    const columnWidth = column.width || METRIC_COLUMN_WIDTH;
+    th.style.width = `${columnWidth}px`;
+    th.style.minWidth = `${columnWidth}px`;
+    const label = document.createElement("span");
+    label.textContent = column.label;
+    th.appendChild(label);
+    headerRow.appendChild(th);
+  });
 
   dayColumns.forEach((dayInfo, columnIndex) => {
     const th = document.createElement("th");
@@ -274,6 +423,7 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, day
   }
 
   rows.forEach((member, index) => {
+    const memberCounts = yearCounts?.[index];
     const tr = document.createElement("tr");
     tr.className = "member-row";
 
@@ -302,6 +452,46 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, day
     }
     tr.appendChild(nameCell);
 
+    metricColumns.forEach((column) => {
+      const td = document.createElement("td");
+      td.className = "metric-cell";
+      td.dataset.col = `metric-${column.key}`;
+      const columnWidth = column.width || METRIC_COLUMN_WIDTH;
+      td.style.width = `${columnWidth}px`;
+      td.style.minWidth = `${columnWidth}px`;
+      if (column.editable) {
+        if (index < data.members.length) {
+          const input = document.createElement("input");
+          input.type = "number";
+          input.className = "metric-input";
+          input.min = "0";
+          input.step = "0.5";
+          const storedValue = yearData?.vacationDays?.[index];
+          const currentValue = Number(storedValue);
+          input.value = Number.isFinite(currentValue) ? String(currentValue) : "";
+          input.addEventListener("change", () => {
+            const nextValue = parseVacationValue(input.value);
+            const previousValue = Number.isFinite(currentValue) ? currentValue : null;
+            if (nextValue === previousValue) {
+              return;
+            }
+            recordUndoState();
+            if (nextValue === null) {
+              delete yearData.vacationDays[index];
+            } else {
+              yearData.vacationDays[index] = nextValue;
+            }
+            saveData(data);
+            renderCalendar();
+          });
+          td.appendChild(input);
+        }
+      } else if (memberCounts) {
+        td.textContent = formatCount(memberCounts[column.key]);
+      }
+      tr.appendChild(td);
+    });
+
     dayColumns.forEach((dayInfo, columnIndex) => {
       const td = document.createElement("td");
       td.className = "cell day-cell";
@@ -321,14 +511,15 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, day
 
       const targetMonthData = getMonthData(dayInfo.year, dayInfo.monthIndex);
       const status = targetMonthData.days?.[index]?.[dayInfo.day];
-      if (status) {
-        td.classList.add(`status-${status}`);
-      } else if (isHoliday) {
+      if (isHoliday) {
         td.classList.add("holiday");
       } else if (isWeekend) {
         td.classList.add("weekend");
       } else if (schoolHolidayDates.has(dateKey)) {
         td.classList.add("school-holiday");
+      }
+      if (status) {
+        td.classList.add(`status-${status}`);
       }
 
       if (status && isVacationStatus(status)) {
@@ -374,6 +565,15 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, day
   summaryLabel.className = "member-column mini-cell";
   summaryLabel.textContent = "";
   summaryRow.appendChild(summaryLabel);
+  metricColumns.forEach((column) => {
+    const summaryCell = document.createElement("td");
+    summaryCell.className = "mini-cell metric-cell";
+    summaryCell.dataset.col = `metric-${column.key}`;
+    const columnWidth = column.width || METRIC_COLUMN_WIDTH;
+    summaryCell.style.width = `${columnWidth}px`;
+    summaryCell.style.minWidth = `${columnWidth}px`;
+    summaryRow.appendChild(summaryCell);
+  });
   dayColumns.forEach((dayInfo, columnIndex) => {
     const summaryCell = document.createElement("td");
     summaryCell.className = "mini-cell day-cell";
@@ -527,6 +727,18 @@ function removeMember(index) {
   Object.values(data.years).forEach((yearData) => {
     if (!yearData.months) {
       return;
+    }
+    if (yearData.vacationDays) {
+      const reorderedVacationDays = {};
+      Object.entries(yearData.vacationDays).forEach(([memberIndex, value]) => {
+        const numericIndex = Number(memberIndex);
+        if (numericIndex < index) {
+          reorderedVacationDays[numericIndex] = value;
+        } else if (numericIndex > index) {
+          reorderedVacationDays[numericIndex - 1] = value;
+        }
+      });
+      yearData.vacationDays = reorderedVacationDays;
     }
     Object.values(yearData.months).forEach((month) => {
       if (!month || !month.days) {

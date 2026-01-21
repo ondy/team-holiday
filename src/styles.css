@@ -127,6 +127,38 @@ td.member-column {
   font-weight: 600;
 }
 
+.metric-cell {
+  padding: 4px 3px;
+}
+
+.metric-header {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 0.5px;
+  height: 110px;
+  vertical-align: middle;
+  text-align: center;
+  position: relative;
+}
+
+.metric-header span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(180deg);
+  white-space: nowrap;
+}
+
+.metric-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 4px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
 td.member-input {
   font-weight: 400;
   cursor: text;
@@ -163,6 +195,63 @@ td.member-input {
 .cell {
   cursor: pointer;
   height: 22px;
+}
+
+td.day-cell.weekend.status-urlaub,
+td.day-cell.holiday.status-urlaub,
+td.day-cell.weekend.status-urlaub-am,
+td.day-cell.holiday.status-urlaub-am,
+td.day-cell.weekend.status-urlaub-pm,
+td.day-cell.holiday.status-urlaub-pm,
+td.day-cell.weekend.status-krank,
+td.day-cell.holiday.status-krank,
+td.day-cell.weekend.status-schulung,
+td.day-cell.holiday.status-schulung,
+td.day-cell.weekend.status-einsatz,
+td.day-cell.holiday.status-einsatz,
+td.day-cell.weekend.status-gleittag,
+td.day-cell.holiday.status-gleittag {
+  position: relative;
+}
+
+td.day-cell.weekend.status-urlaub::after,
+td.day-cell.holiday.status-urlaub::after,
+td.day-cell.weekend.status-urlaub-am::after,
+td.day-cell.holiday.status-urlaub-am::after,
+td.day-cell.weekend.status-urlaub-pm::after,
+td.day-cell.holiday.status-urlaub-pm::after,
+td.day-cell.weekend.status-krank::after,
+td.day-cell.holiday.status-krank::after,
+td.day-cell.weekend.status-schulung::after,
+td.day-cell.holiday.status-schulung::after,
+td.day-cell.weekend.status-einsatz::after,
+td.day-cell.holiday.status-einsatz::after,
+td.day-cell.weekend.status-gleittag::after,
+td.day-cell.holiday.status-gleittag::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(120, 120, 120, 0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+
+td.day-cell.weekend.status-urlaub > *,
+td.day-cell.holiday.status-urlaub > *,
+td.day-cell.weekend.status-urlaub-am > *,
+td.day-cell.holiday.status-urlaub-am > *,
+td.day-cell.weekend.status-urlaub-pm > *,
+td.day-cell.holiday.status-urlaub-pm > *,
+td.day-cell.weekend.status-krank > *,
+td.day-cell.holiday.status-krank > *,
+td.day-cell.weekend.status-schulung > *,
+td.day-cell.holiday.status-schulung > *,
+td.day-cell.weekend.status-einsatz > *,
+td.day-cell.holiday.status-einsatz > *,
+td.day-cell.weekend.status-gleittag > *,
+td.day-cell.holiday.status-gleittag > * {
+  position: relative;
+  z-index: 2;
 }
 
 .vacation-cell {
