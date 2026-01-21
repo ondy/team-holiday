@@ -138,16 +138,15 @@ td.member-column {
   height: 110px;
   vertical-align: middle;
   text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
 }
 
 .metric-header span {
-  display: inline-block;
-  transform: rotate(180deg);
-  margin: 0;
-  width: auto;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(180deg);
+  white-space: nowrap;
 }
 
 .metric-input {
@@ -208,7 +207,7 @@ td.day-cell.holiday::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(180, 180, 180, 0.35);
+  background: rgba(160, 160, 160, 0.2);
   pointer-events: none;
   z-index: 1;
 }
