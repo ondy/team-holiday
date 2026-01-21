@@ -9,6 +9,7 @@
   --status-einsatz: #ffd18a;
   --status-gleittag: #9be7e7;
   --school-holiday: #e5e5e5;
+  --weekend-vacation-overlay: rgba(120, 120, 120, 0.35);
   --hover-highlight: #4b4f55;
   --today-highlight: #1b1b1b;
   --member-column-width: 180px;
@@ -231,7 +232,7 @@ td.day-cell.holiday.status-gleittag::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(120, 120, 120, 0.35);
+  background: var(--weekend-vacation-overlay);
   pointer-events: none;
   z-index: 1;
 }
@@ -414,11 +415,11 @@ td.day-cell.holiday.status-gleittag > * {
 
 .row-highlight td,
 .row-highlight th {
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: var(--weekend-vacation-overlay);
 }
 
 .col-highlight {
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: var(--weekend-vacation-overlay);
 }
 
 .today-column-highlight {
