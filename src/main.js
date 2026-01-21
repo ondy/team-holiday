@@ -990,18 +990,13 @@ function addTableHoverHighlights(table) {
     table.querySelectorAll(".row-highlight").forEach((row) => row.classList.remove("row-highlight"));
     table.querySelectorAll(".col-highlight").forEach((cell) => cell.classList.remove("col-highlight"));
   };
-  const isMetaCell = (cell) =>
-    cell.classList.contains("member-column") || cell.classList.contains("mini-cell");
 
   table.addEventListener("mouseover", (event) => {
-    const cell = event.target.closest("td, th");
+    const cell = event.target.closest("td.cell");
     if (!cell) {
       return;
     }
     clearHighlights();
-    if (isMetaCell(cell)) {
-      return;
-    }
     const row = cell.parentElement;
     if (row) {
       row.classList.add("row-highlight");
@@ -1010,10 +1005,7 @@ function addTableHoverHighlights(table) {
     if (!colKey) {
       return;
     }
-    table.querySelectorAll(`[data-col="${colKey}"]`).forEach((colCell) => {
-      if (isMetaCell(colCell)) {
-        return;
-      }
+    table.querySelectorAll(`td.cell[data-col="${colKey}"]`).forEach((colCell) => {
       colCell.classList.add("col-highlight");
     });
   });
