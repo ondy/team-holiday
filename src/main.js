@@ -62,6 +62,7 @@ const legendItemsByStatus = new Map(
 
 const schoolHolidayStateSelect = document.getElementById("school-holiday-state");
 const validSchoolHolidayStates = new Set(schoolHolidayStates.map((state) => state.code));
+const schoolHolidayStateByCode = new Map(schoolHolidayStates.map((state) => [state.code, state]));
 const storedSchoolHolidayState = localStorage.getItem(schoolHolidayStateStorageKey);
 if (storedSchoolHolidayState && validSchoolHolidayStates.has(storedSchoolHolidayState)) {
   activeSchoolHolidayState = storedSchoolHolidayState;
@@ -135,22 +136,127 @@ function getSchoolHolidayStorageKey(year, state) {
   return `schoolHolidays_${state}_${year}`;
 }
 
+function parseHolidayDate(value) {
+  if (!value) {
+    return null;
+  }
+  if (value instanceof Date) {
+    return Number.isFinite(value.getTime()) ? value : null;
+  }
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isFinite(parsed.getTime()) ? parsed : null;
+  }
+  if (typeof value === "object") {
+    if (typeof value.date === "string") {
+      const parsed = new Date(value.date);
+      return Number.isFinite(parsed.getTime()) ? parsed : null;
+    }
+    if (typeof value.iso === "string") {
+      const parsed = new Date(value.iso);
+      return Number.isFinite(parsed.getTime()) ? parsed : null;
+    }
+  }
+  return null;
+}
+
+function resolveHolidayName(entry) {
+  if (!entry) {
+    return "Ferien";
+  }
+  if (typeof entry.name === "string" && entry.name.trim()) {
+    return entry.name;
+  }
+  if (entry.name && typeof entry.name.text === "string" && entry.name.text.trim()) {
+    return entry.name.text;
+  }
+  if (Array.isArray(entry.name)) {
+    const germanName = entry.name.find((item) => item?.language === "DE" || item?.language === "de");
+    if (germanName?.text) {
+      return germanName.text;
+    }
+    const firstName = entry.name.find((item) => item?.text);
+    if (firstName?.text) {
+      return firstName.text;
+    }
+  }
+  if (typeof entry.type === "string" && entry.type.trim()) {
+    return entry.type;
+  }
+  return "Ferien";
+}
+
+function normalizeHolidayEntries(entries) {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  return entries
+    .map((entry) => {
+      const start = parseHolidayDate(entry?.startDate ?? entry?.start);
+      const end = parseHolidayDate(entry?.endDate ?? entry?.end);
+      if (!start || !end) {
+        return null;
+      }
+      return {
+        name: resolveHolidayName(entry),
+        start: start.toISOString(),
+        end: end.toISOString(),
+      };
+    })
+    .filter(Boolean);
+}
+
+function fetchSchoolHolidaysFallback(year, state) {
+  return fetch(`https://ferien-api.de/api/v1/holidays/${state}/${year}`)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Unable to load school holidays");
+      }
+      return response.json();
+    })
+    .then((entries) => normalizeHolidayEntries(entries))
+    .catch(() => null);
+}
+
 function loadSchoolHolidays(year, state) {
   const cached = localStorage.getItem(getSchoolHolidayStorageKey(year, state));
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
-      return Promise.resolve(parsed);
+      return Promise.resolve(normalizeHolidayEntries(parsed));
     } catch (error) {
       localStorage.removeItem(getSchoolHolidayStorageKey(year, state));
     }
   }
 
-  return fetch(`https://ferien-api.de/api/v1/holidays/${state}/${year}`)
-    .then((response) => response.json())
+  const subdivisionCode = schoolHolidayStateByCode.get(state)?.subdivisionCode ?? `DE-${state}`;
+  const fromDate = `${year}-01-01`;
+  const toDate = `${year}-12-31`;
+
+  return fetch(
+    `https://openholidaysapi.org/SchoolHolidays?countryIsoCode=DE&subdivisionCode=${subdivisionCode}&validFrom=${fromDate}&validTo=${toDate}&languageIsoCode=DE`
+  )
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Unable to load school holidays");
+      }
+      return response.json();
+    })
     .then((entries) => {
-      localStorage.setItem(getSchoolHolidayStorageKey(year, state), JSON.stringify(entries));
-      return entries;
+      const normalized = normalizeHolidayEntries(entries);
+      if (!normalized.length) {
+        throw new Error("No entries from primary source");
+      }
+      localStorage.setItem(getSchoolHolidayStorageKey(year, state), JSON.stringify(normalized));
+      return normalized;
+    })
+    .catch(() => fetchSchoolHolidaysFallback(year, state))
+    .then((fallbackEntries) => {
+      if (!fallbackEntries) {
+        return null;
+      }
+      localStorage.setItem(getSchoolHolidayStorageKey(year, state), JSON.stringify(fallbackEntries));
+      return fallbackEntries;
     })
     .catch(() => null);
 }
