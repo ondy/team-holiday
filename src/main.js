@@ -10,7 +10,7 @@ import {
   statusOptions,
 } from "./constants.js";
 import { updateHolidayMaps } from "./holidays.js";
-import { applySnapshot, loadData, saveData, snapshotData, sortMembersAndReindex } from "./storage.js";
+import { applySnapshot, loadData, normalizeData, saveData, snapshotData, sortMembersAndReindex } from "./storage.js";
 
 const now = new Date();
 const currentYear = now.getFullYear();
@@ -104,8 +104,10 @@ function recordUndoState() {
 function updateUndoRedoButtons() {
   const undoButton = document.getElementById("undo-button");
   const redoButton = document.getElementById("redo-button");
+  const exportButton = document.getElementById("export-button");
   undoButton.disabled = undoStack.length === 0;
   redoButton.disabled = redoStack.length === 0;
+  exportButton.disabled = data.members.length === 0;
 }
 
 function handleUndo() {
@@ -130,6 +132,157 @@ function handleRedo() {
   saveData(data);
   renderCalendar();
   updateUndoRedoButtons();
+}
+
+function downloadExport() {
+  const exportPayload = JSON.stringify(data, null, 2);
+  const blob = new Blob([exportPayload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  const timestamp = new Date().toISOString().slice(0, 10);
+  link.download = `urlaubsplanung-${timestamp}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function isImportPayload(value) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return (
+    Object.hasOwn(value, "members") ||
+    Object.hasOwn(value, "years") ||
+    Object.hasOwn(value, "months")
+  );
+}
+
+function mergeImportedData(importedData) {
+  const importIndexMap = new Map();
+  importedData.members.forEach((member, index) => {
+    data.members.push({ name: member.name || "" });
+    importIndexMap.set(index, data.members.length - 1);
+  });
+
+  Object.entries(importedData.years || {}).forEach(([year, yearData]) => {
+    if (!data.years[year]) {
+      data.years[year] = { months: {}, vacationDays: {} };
+    }
+    const targetYear = data.years[year];
+    if (!targetYear.months) {
+      targetYear.months = {};
+    }
+    if (!targetYear.vacationDays) {
+      targetYear.vacationDays = {};
+    }
+
+    if (yearData?.vacationDays) {
+      Object.entries(yearData.vacationDays).forEach(([memberIndex, value]) => {
+        const targetIndex = importIndexMap.get(Number(memberIndex));
+        if (targetIndex === undefined || value === undefined || value === null) {
+          return;
+        }
+        targetYear.vacationDays[targetIndex] = value;
+      });
+    }
+
+    Object.entries(yearData?.months || {}).forEach(([monthIndex, monthData]) => {
+      if (!targetYear.months[monthIndex]) {
+        targetYear.months[monthIndex] = { days: {}, approved: {} };
+      }
+      const targetMonth = targetYear.months[monthIndex];
+      if (!targetMonth.days) {
+        targetMonth.days = {};
+      }
+      if (!targetMonth.approved) {
+        targetMonth.approved = {};
+      }
+
+      Object.entries(monthData?.days || {}).forEach(([memberIndex, days]) => {
+        const targetIndex = importIndexMap.get(Number(memberIndex));
+        if (targetIndex === undefined) {
+          return;
+        }
+        if (!targetMonth.days[targetIndex]) {
+          targetMonth.days[targetIndex] = {};
+        }
+        Object.entries(days || {}).forEach(([day, status]) => {
+          targetMonth.days[targetIndex][day] = status;
+        });
+      });
+
+      Object.entries(monthData?.approved || {}).forEach(([memberIndex, days]) => {
+        const targetIndex = importIndexMap.get(Number(memberIndex));
+        if (targetIndex === undefined) {
+          return;
+        }
+        if (!targetMonth.approved[targetIndex]) {
+          targetMonth.approved[targetIndex] = {};
+        }
+        Object.entries(days || {}).forEach(([day, status]) => {
+          targetMonth.approved[targetIndex][day] = status;
+        });
+      });
+    });
+  });
+
+  sortMembersAndReindex(data);
+}
+
+function isDataEmpty() {
+  return data.members.length === 0;
+}
+
+function requestImportMode() {
+  const dialog = document.getElementById("import-dialog");
+  if (!dialog || typeof dialog.showModal !== "function") {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const handleClose = () => {
+      dialog.removeEventListener("close", handleClose);
+      resolve(dialog.returnValue);
+    };
+    dialog.addEventListener("close", handleClose, { once: true });
+    dialog.returnValue = "cancel";
+    dialog.showModal();
+  });
+}
+
+async function handleImportFile(file) {
+  if (!file) {
+    return;
+  }
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!isImportPayload(parsed)) {
+      window.alert("Die gewählte Datei konnte nicht verarbeitet werden.");
+      return;
+    }
+    const normalized = normalizeData(parsed, currentYear);
+    let mode = "overwrite";
+    if (!isDataEmpty()) {
+      mode = await requestImportMode();
+      if (mode !== "overwrite" && mode !== "merge") {
+        return;
+      }
+    }
+    recordUndoState();
+    if (mode === "overwrite") {
+      applySnapshot(JSON.stringify(normalized), data);
+    } else {
+      mergeImportedData(normalized);
+    }
+    saveData(data);
+    renderCalendar();
+    updateUndoRedoButtons();
+    loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState, { reset: true });
+  } catch (error) {
+    window.alert("Beim Importieren der Datei ist ein Fehler aufgetreten.");
+  }
 }
 
 function getSchoolHolidayStorageKey(year, state) {
@@ -1319,10 +1472,22 @@ loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidaySta
 
 const undoButton = document.getElementById("undo-button");
 const redoButton = document.getElementById("redo-button");
+const exportButton = document.getElementById("export-button");
+const importButton = document.getElementById("import-button");
+const importFileInput = document.getElementById("import-file");
 const prevYearButton = document.getElementById("prev-year");
 const nextYearButton = document.getElementById("next-year");
 undoButton.addEventListener("click", handleUndo);
 redoButton.addEventListener("click", handleRedo);
+exportButton.addEventListener("click", downloadExport);
+importButton.addEventListener("click", () => {
+  importFileInput.value = "";
+  importFileInput.click();
+});
+importFileInput.addEventListener("change", (event) => {
+  const [file] = event.target.files || [];
+  handleImportFile(file);
+});
 prevYearButton.addEventListener("click", () => changeYear(-1));
 nextYearButton.addEventListener("click", () => changeYear(1));
 updateUndoRedoButtons();

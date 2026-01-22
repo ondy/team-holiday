@@ -66,15 +66,58 @@ h1 {
 .actions button {
   border: 1px solid #cbd5e1;
   background: #f8fafc;
-  padding: 6px 10px;
+  padding: 0 10px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
+  line-height: 1;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .actions button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.import-dialog {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 20px;
+  max-width: 360px;
+  width: calc(100% - 32px);
+}
+
+.import-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.import-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.import-dialog p {
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.dialog-actions button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
 }
 
 .tabs {

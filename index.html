@@ -16,6 +16,8 @@
       <div class="actions">
         <button id="undo-button" type="button" title="Undo">↶ Undo</button>
         <button id="redo-button" type="button" title="Redo">↷ Redo</button>
+        <button id="export-button" type="button" title="Export">⬇️ Export</button>
+        <button id="import-button" type="button" title="Import">⬆️ Import</button>
       </div>
     </div>
     <div class="tabs" id="month-tabs"></div>
@@ -52,6 +54,18 @@
 
     <div class="context-menu" id="context-menu"></div>
     <div class="build-info" id="build-info"></div>
+    <input id="import-file" type="file" accept="application/json,.json" hidden />
+    <dialog id="import-dialog" class="import-dialog">
+      <form method="dialog">
+        <h2>Import</h2>
+        <p>Wie sollen die Daten importiert werden?</p>
+        <div class="dialog-actions">
+          <button value="merge" type="submit">Ergänzen</button>
+          <button value="overwrite" type="submit">Überschreiben</button>
+          <button value="cancel" type="submit">Abbrechen</button>
+        </div>
+      </form>
+    </dialog>
 
     <script type="module" src="/src/main.js"></script>
   </body>
