@@ -104,8 +104,10 @@ function recordUndoState() {
 function updateUndoRedoButtons() {
   const undoButton = document.getElementById("undo-button");
   const redoButton = document.getElementById("redo-button");
+  const exportButton = document.getElementById("export-button");
   undoButton.disabled = undoStack.length === 0;
   redoButton.disabled = redoStack.length === 0;
+  exportButton.disabled = data.members.length === 0;
 }
 
 function handleUndo() {
