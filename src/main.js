@@ -158,28 +158,10 @@ function isImportPayload(value) {
 }
 
 function mergeImportedData(importedData) {
-  const memberKey = (name) => (name || "").trim().toLowerCase();
-  const existingMembers = new Map();
-  data.members.forEach((member, index) => {
-    const key = memberKey(member.name);
-    if (key) {
-      existingMembers.set(key, index);
-    }
-  });
-
   const importIndexMap = new Map();
   importedData.members.forEach((member, index) => {
-    const key = memberKey(member.name);
-    if (key && existingMembers.has(key)) {
-      importIndexMap.set(index, existingMembers.get(key));
-      return;
-    }
     data.members.push({ name: member.name || "" });
-    const newIndex = data.members.length - 1;
-    if (key) {
-      existingMembers.set(key, newIndex);
-    }
-    importIndexMap.set(index, newIndex);
+    importIndexMap.set(index, data.members.length - 1);
   });
 
   Object.entries(importedData.years || {}).forEach(([year, yearData]) => {
@@ -200,9 +182,7 @@ function mergeImportedData(importedData) {
         if (targetIndex === undefined || value === undefined || value === null) {
           return;
         }
-        if (targetYear.vacationDays[targetIndex] === undefined) {
-          targetYear.vacationDays[targetIndex] = value;
-        }
+        targetYear.vacationDays[targetIndex] = value;
       });
     }
 
@@ -227,9 +207,7 @@ function mergeImportedData(importedData) {
           targetMonth.days[targetIndex] = {};
         }
         Object.entries(days || {}).forEach(([day, status]) => {
-          if (targetMonth.days[targetIndex][day] === undefined) {
-            targetMonth.days[targetIndex][day] = status;
-          }
+          targetMonth.days[targetIndex][day] = status;
         });
       });
 
@@ -242,9 +220,7 @@ function mergeImportedData(importedData) {
           targetMonth.approved[targetIndex] = {};
         }
         Object.entries(days || {}).forEach(([day, status]) => {
-          if (targetMonth.approved[targetIndex][day] === undefined) {
-            targetMonth.approved[targetIndex][day] = status;
-          }
+          targetMonth.approved[targetIndex][day] = status;
         });
       });
     });
@@ -253,44 +229,58 @@ function mergeImportedData(importedData) {
   sortMembersAndReindex(data);
 }
 
-function handleImportFile(file) {
+function isDataEmpty() {
+  return data.members.length === 0 && Object.keys(data.years).length === 0;
+}
+
+function requestImportMode() {
+  const dialog = document.getElementById("import-dialog");
+  if (!dialog || typeof dialog.showModal !== "function") {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    const handleClose = () => {
+      dialog.removeEventListener("close", handleClose);
+      resolve(dialog.returnValue);
+    };
+    dialog.addEventListener("close", handleClose, { once: true });
+    dialog.returnValue = "cancel";
+    dialog.showModal();
+  });
+}
+
+async function handleImportFile(file) {
   if (!file) {
     return;
   }
-  file
-    .text()
-    .then((text) => {
-      let parsed;
-      try {
-        parsed = JSON.parse(text);
-      } catch (error) {
-        return null;
-      }
-      return parsed;
-    })
-    .then((parsed) => {
-      if (!isImportPayload(parsed)) {
-        window.alert("Die gewählte Datei konnte nicht verarbeitet werden.");
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!isImportPayload(parsed)) {
+      window.alert("Die gewählte Datei konnte nicht verarbeitet werden.");
+      return;
+    }
+    const normalized = normalizeData(parsed, currentYear);
+    let mode = "overwrite";
+    if (!isDataEmpty()) {
+      mode = await requestImportMode();
+      if (mode !== "overwrite" && mode !== "merge") {
         return;
       }
-      const normalized = normalizeData(parsed, currentYear);
-      const shouldOverwrite = window.confirm(
-        "Sollen die importierten Daten die bestehenden Daten überschreiben?\nOK = Überschreiben, Abbrechen = Ergänzen."
-      );
-      recordUndoState();
-      if (shouldOverwrite) {
-        applySnapshot(JSON.stringify(normalized), data);
-      } else {
-        mergeImportedData(normalized);
-      }
-      saveData(data);
-      renderCalendar();
-      updateUndoRedoButtons();
-      loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState, { reset: true });
-    })
-    .catch(() => {
-      window.alert("Beim Importieren der Datei ist ein Fehler aufgetreten.");
-    });
+    }
+    recordUndoState();
+    if (mode === "overwrite") {
+      applySnapshot(JSON.stringify(normalized), data);
+    } else {
+      mergeImportedData(normalized);
+    }
+    saveData(data);
+    renderCalendar();
+    updateUndoRedoButtons();
+    loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState, { reset: true });
+  } catch (error) {
+    window.alert("Beim Importieren der Datei ist ein Fehler aufgetreten.");
+  }
 }
 
 function getSchoolHolidayStorageKey(year, state) {
