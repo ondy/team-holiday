@@ -6,6 +6,7 @@ import {
   METRIC_COLUMN_WIDTH,
   MIN_DAY_CELL_WIDTH,
   monthNames,
+  schoolHolidayStates,
   statusOptions,
 } from "./constants.js";
 import { updateHolidayMaps } from "./holidays.js";
@@ -22,6 +23,11 @@ const statusLabelMap = new Map(statusOptions.map((option) => [option.value, opti
 const data = loadData(currentYear);
 const schoolHolidayDates = new Set();
 const schoolHolidayInfoMap = new Map();
+const schoolHolidayStateStorageKey = "schoolHolidayState";
+const schoolHolidayLoadedYears = new Set();
+let schoolHolidayRequestId = 0;
+let activeSchoolHolidayState = "NW";
+let loadedSchoolHolidayState = "NW";
 const undoStack = [];
 const redoStack = [];
 let isSelecting = false;
@@ -53,6 +59,32 @@ if (buildInfo) {
 const legendItemsByStatus = new Map(
   Array.from(document.querySelectorAll(".legend-item[data-status]")).map((item) => [item.dataset.status, item])
 );
+
+const schoolHolidayStateSelect = document.getElementById("school-holiday-state");
+const validSchoolHolidayStates = new Set(schoolHolidayStates.map((state) => state.code));
+const storedSchoolHolidayState = localStorage.getItem(schoolHolidayStateStorageKey);
+if (storedSchoolHolidayState && validSchoolHolidayStates.has(storedSchoolHolidayState)) {
+  activeSchoolHolidayState = storedSchoolHolidayState;
+}
+loadedSchoolHolidayState = activeSchoolHolidayState;
+
+if (schoolHolidayStateSelect) {
+  schoolHolidayStateSelect.innerHTML = "";
+  schoolHolidayStates.forEach((state) => {
+    const option = document.createElement("option");
+    option.value = state.code;
+    option.textContent = state.name;
+    if (state.code === activeSchoolHolidayState) {
+      option.selected = true;
+    }
+    schoolHolidayStateSelect.appendChild(option);
+  });
+  schoolHolidayStateSelect.addEventListener("change", () => {
+    activeSchoolHolidayState = schoolHolidayStateSelect.value;
+    localStorage.setItem(schoolHolidayStateStorageKey, activeSchoolHolidayState);
+    loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState, { reset: true });
+  });
+}
 
 function setLegendHighlight(status, isActive) {
   const item = legendItemsByStatus.get(status);
@@ -99,38 +131,40 @@ function handleRedo() {
   updateUndoRedoButtons();
 }
 
-function getSchoolHolidayStorageKey(year) {
-  return `schoolHolidaysNW_${year}`;
+function getSchoolHolidayStorageKey(year, state) {
+  return `schoolHolidays_${state}_${year}`;
 }
 
-function loadSchoolHolidays(year) {
-  const cached = localStorage.getItem(getSchoolHolidayStorageKey(year));
+function loadSchoolHolidays(year, state) {
+  const cached = localStorage.getItem(getSchoolHolidayStorageKey(year, state));
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
-      applySchoolHolidays(parsed);
-      return Promise.resolve();
+      return Promise.resolve(parsed);
     } catch (error) {
-      localStorage.removeItem(getSchoolHolidayStorageKey(year));
+      localStorage.removeItem(getSchoolHolidayStorageKey(year, state));
     }
   }
 
-  return fetch(`https://ferien-api.de/api/v1/holidays/NW/${year}`)
+  return fetch(`https://ferien-api.de/api/v1/holidays/${state}/${year}`)
     .then((response) => response.json())
     .then((entries) => {
-      localStorage.setItem(getSchoolHolidayStorageKey(year), JSON.stringify(entries));
-      applySchoolHolidays(entries);
+      localStorage.setItem(getSchoolHolidayStorageKey(year, state), JSON.stringify(entries));
+      return entries;
     })
-    .catch(() => {});
+    .catch(() => null);
 }
 
 function formatHolidayDate(date) {
   return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
 }
 
-function applySchoolHolidays(entries) {
+function clearSchoolHolidays() {
   schoolHolidayDates.clear();
   schoolHolidayInfoMap.clear();
+}
+
+function applySchoolHolidays(entries) {
   if (!Array.isArray(entries)) {
     return;
   }
@@ -154,6 +188,52 @@ function applySchoolHolidays(entries) {
         schoolHolidayInfoMap.set(key, holidayLabel);
       }
     }
+  });
+}
+
+function getSchoolHolidayYearsToLoad() {
+  const years = new Set(
+    Object.keys(data.years)
+      .map((year) => Number(year))
+      .filter((year) => Number.isFinite(year))
+  );
+  years.add(currentYear);
+  years.add(currentYear + 1);
+  years.add(activeYear);
+  return years;
+}
+
+function resetSchoolHolidayCache() {
+  clearSchoolHolidays();
+  schoolHolidayLoadedYears.clear();
+  loadedSchoolHolidayState = activeSchoolHolidayState;
+}
+
+function loadSchoolHolidaysForYears(years, state, { reset = false } = {}) {
+  if (reset || state !== loadedSchoolHolidayState) {
+    resetSchoolHolidayCache();
+    renderCalendar();
+  }
+
+  const yearsToLoad = [...years].filter((year) => !schoolHolidayLoadedYears.has(year));
+  if (!yearsToLoad.length) {
+    renderCalendar();
+    return Promise.resolve();
+  }
+
+  const requestId = ++schoolHolidayRequestId;
+  return Promise.all(yearsToLoad.map((year) => loadSchoolHolidays(year, state))).then((entriesByYear) => {
+    if (requestId !== schoolHolidayRequestId) {
+      return;
+    }
+    entriesByYear.forEach((entries, index) => {
+      if (!entries) {
+        return;
+      }
+      applySchoolHolidays(entries);
+      schoolHolidayLoadedYears.add(yearsToLoad[index]);
+    });
+    renderCalendar();
   });
 }
 
@@ -1124,16 +1204,12 @@ function changeYear(delta) {
   activeYear += delta;
   activeMonth = delta > 0 ? 0 : 11;
   updateHolidayMaps(activeYear, holidaySet, holidayNameMap);
-  loadSchoolHolidays(activeYear).then(() => {
-    renderCalendar();
-  });
   renderCalendar();
+  loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState);
 }
 
 renderCalendar();
-loadSchoolHolidays(activeYear).then(() => {
-  renderCalendar();
-});
+loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState, { reset: true });
 
 const undoButton = document.getElementById("undo-button");
 const redoButton = document.getElementById("redo-button");
