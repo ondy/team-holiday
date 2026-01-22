@@ -18,6 +18,7 @@
         <button id="redo-button" type="button" title="Redo">↷ Redo</button>
         <button id="export-button" type="button" title="Export">⬇️ Export</button>
         <button id="import-button" type="button" title="Import">⬆️ Import</button>
+        <button id="share-button" type="button" title="Teilen">🔗 Teilen</button>
       </div>
     </div>
     <div class="tabs" id="month-tabs"></div>
@@ -63,6 +64,16 @@
           <button value="merge" type="submit">Ergänzen</button>
           <button value="overwrite" type="submit">Überschreiben</button>
           <button value="cancel" type="submit">Abbrechen</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="share-dialog" class="share-dialog">
+      <form method="dialog">
+        <h2>Teilen</h2>
+        <p>Diese URL teilen, um alle eingegebenen Daten an eine andere Person zu schicken:</p>
+        <input id="share-url" type="text" readonly />
+        <div class="dialog-actions">
+          <button value="close" type="submit">Schließen</button>
         </div>
       </form>
     </dialog>

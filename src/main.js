@@ -105,9 +105,11 @@ function updateUndoRedoButtons() {
   const undoButton = document.getElementById("undo-button");
   const redoButton = document.getElementById("redo-button");
   const exportButton = document.getElementById("export-button");
+  const shareButton = document.getElementById("share-button");
   undoButton.disabled = undoStack.length === 0;
   redoButton.disabled = redoStack.length === 0;
   exportButton.disabled = data.members.length === 0;
+  shareButton.disabled = data.members.length === 0;
 }
 
 function handleUndo() {
@@ -146,6 +148,70 @@ function downloadExport() {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function base64FromBytes(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.slice(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function bytesFromBase64(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function compressString(value) {
+  if (typeof CompressionStream === "undefined") {
+    throw new Error("Compression not supported");
+  }
+  const encoded = new TextEncoder().encode(value);
+  const stream = new Blob([encoded]).stream().pipeThrough(new CompressionStream("gzip"));
+  const buffer = await new Response(stream).arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
+async function decompressToString(bytes) {
+  if (typeof DecompressionStream === "undefined") {
+    throw new Error("Decompression not supported");
+  }
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  const buffer = await new Response(stream).arrayBuffer();
+  return new TextDecoder().decode(buffer);
+}
+
+async function createShareUrl() {
+  const payload = JSON.stringify(data);
+  const compressed = await compressString(payload);
+  const encoded = base64FromBytes(compressed);
+  const url = new URL(window.location.href);
+  url.hash = new URLSearchParams({ data: encoded }).toString();
+  return url.toString();
+}
+
+function showShareDialog(value) {
+  const dialog = document.getElementById("share-dialog");
+  const input = document.getElementById("share-url");
+  if (input) {
+    input.value = value;
+    input.focus();
+    input.select();
+  }
+  if (!dialog || typeof dialog.showModal !== "function") {
+    window.prompt(
+      "Diese URL teilen, um alle eingegebenen Daten an eine andere Person zu schicken:",
+      value
+    );
+    return;
+  }
+  dialog.showModal();
 }
 
 function isImportPayload(value) {
@@ -251,6 +317,32 @@ function requestImportMode() {
   });
 }
 
+async function importPayload(parsed) {
+  if (!isImportPayload(parsed)) {
+    window.alert("Die gewählten Daten konnten nicht verarbeitet werden.");
+    return false;
+  }
+  const normalized = normalizeData(parsed, currentYear);
+  let mode = "overwrite";
+  if (!isDataEmpty()) {
+    mode = await requestImportMode();
+    if (mode !== "overwrite" && mode !== "merge") {
+      return false;
+    }
+  }
+  recordUndoState();
+  if (mode === "overwrite") {
+    applySnapshot(JSON.stringify(normalized), data);
+  } else {
+    mergeImportedData(normalized);
+  }
+  saveData(data);
+  renderCalendar();
+  updateUndoRedoButtons();
+  loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState, { reset: true });
+  return true;
+}
+
 async function handleImportFile(file) {
   if (!file) {
     return;
@@ -258,31 +350,37 @@ async function handleImportFile(file) {
   try {
     const text = await file.text();
     const parsed = JSON.parse(text);
-    if (!isImportPayload(parsed)) {
-      window.alert("Die gewählte Datei konnte nicht verarbeitet werden.");
-      return;
-    }
-    const normalized = normalizeData(parsed, currentYear);
-    let mode = "overwrite";
-    if (!isDataEmpty()) {
-      mode = await requestImportMode();
-      if (mode !== "overwrite" && mode !== "merge") {
-        return;
-      }
-    }
-    recordUndoState();
-    if (mode === "overwrite") {
-      applySnapshot(JSON.stringify(normalized), data);
-    } else {
-      mergeImportedData(normalized);
-    }
-    saveData(data);
-    renderCalendar();
-    updateUndoRedoButtons();
-    loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState, { reset: true });
+    await importPayload(parsed);
   } catch (error) {
     window.alert("Beim Importieren der Datei ist ein Fehler aufgetreten.");
   }
+}
+
+async function handleImportFromShare(value) {
+  if (!value) {
+    return;
+  }
+  try {
+    const bytes = bytesFromBase64(value);
+    const jsonText = await decompressToString(bytes);
+    const parsed = JSON.parse(jsonText);
+    const imported = await importPayload(parsed);
+    if (imported) {
+      const url = new URL(window.location.href);
+      url.hash = "";
+      window.history.replaceState(null, "", url.toString());
+    }
+  } catch (error) {
+    window.alert("Beim Importieren der geteilten Daten ist ein Fehler aufgetreten.");
+  }
+}
+
+function getShareDataFromUrl() {
+  if (!window.location.hash) {
+    return null;
+  }
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  return params.get("data");
 }
 
 function getSchoolHolidayStorageKey(year, state) {
@@ -1474,6 +1572,7 @@ const undoButton = document.getElementById("undo-button");
 const redoButton = document.getElementById("redo-button");
 const exportButton = document.getElementById("export-button");
 const importButton = document.getElementById("import-button");
+const shareButton = document.getElementById("share-button");
 const importFileInput = document.getElementById("import-file");
 const prevYearButton = document.getElementById("prev-year");
 const nextYearButton = document.getElementById("next-year");
@@ -1484,6 +1583,14 @@ importButton.addEventListener("click", () => {
   importFileInput.value = "";
   importFileInput.click();
 });
+shareButton.addEventListener("click", async () => {
+  try {
+    const shareUrl = await createShareUrl();
+    showShareDialog(shareUrl);
+  } catch (error) {
+    window.alert("Teilen ist in diesem Browser leider nicht verfügbar.");
+  }
+});
 importFileInput.addEventListener("change", (event) => {
   const [file] = event.target.files || [];
   handleImportFile(file);
@@ -1491,3 +1598,4 @@ importFileInput.addEventListener("change", (event) => {
 prevYearButton.addEventListener("click", () => changeYear(-1));
 nextYearButton.addEventListener("click", () => changeYear(1));
 updateUndoRedoButtons();
+void handleImportFromShare(getShareDataFromUrl());
