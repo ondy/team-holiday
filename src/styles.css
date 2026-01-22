@@ -516,6 +516,7 @@ td.day-cell.holiday.status-gleittag > * {
   top: 0;
   bottom: 0;
   border: 2px solid var(--today-highlight);
+  box-sizing: border-box;
   pointer-events: none;
   z-index: 5;
 }
