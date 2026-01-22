@@ -230,7 +230,7 @@ function mergeImportedData(importedData) {
 }
 
 function isDataEmpty() {
-  return data.members.length === 0 && Object.keys(data.years).length === 0;
+  return data.members.length === 0;
 }
 
 function requestImportMode() {
