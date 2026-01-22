@@ -66,10 +66,15 @@ h1 {
 .actions button {
   border: 1px solid #cbd5e1;
   background: #f8fafc;
-  padding: 6px 10px;
+  padding: 0 10px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 12px;
+  line-height: 1;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .actions button:disabled {
