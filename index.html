@@ -25,7 +25,11 @@
       <div class="legend-group">
         <div class="legend-item"><span class="color-dot weekend"></span> Wochenende</div>
         <div class="legend-item"><span class="color-dot holiday"></span> Feiertag</div>
-        <div class="legend-item"><span class="color-dot school-holiday"></span> NRW Ferien</div>
+        <div class="legend-item legend-item--select">
+          <span class="color-dot school-holiday"></span>
+          <label for="school-holiday-state">Ferien</label>
+          <select id="school-holiday-state" name="school-holiday-state" aria-label="Bundesland für Ferien"></select>
+        </div>
       </div>
       <div class="legend-divider" aria-hidden="true"></div>
       <div class="legend-group">

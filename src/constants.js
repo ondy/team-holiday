@@ -27,6 +27,25 @@ export const monthNames = [
 
 export const storageKey = "teamHolidayData";
 
+export const schoolHolidayStates = [
+  { code: "BW", name: "Baden-Württemberg", subdivisionCode: "DE-BW" },
+  { code: "BY", name: "Bayern", subdivisionCode: "DE-BY" },
+  { code: "BE", name: "Berlin", subdivisionCode: "DE-BE" },
+  { code: "BB", name: "Brandenburg", subdivisionCode: "DE-BB" },
+  { code: "HB", name: "Bremen", subdivisionCode: "DE-HB" },
+  { code: "HH", name: "Hamburg", subdivisionCode: "DE-HH" },
+  { code: "HE", name: "Hessen", subdivisionCode: "DE-HE" },
+  { code: "MV", name: "Mecklenburg-Vorpommern", subdivisionCode: "DE-MV" },
+  { code: "NI", name: "Niedersachsen", subdivisionCode: "DE-NI" },
+  { code: "NW", name: "Nordrhein-Westfalen", subdivisionCode: "DE-NW" },
+  { code: "RP", name: "Rheinland-Pfalz", subdivisionCode: "DE-RP" },
+  { code: "SL", name: "Saarland", subdivisionCode: "DE-SL" },
+  { code: "SN", name: "Sachsen", subdivisionCode: "DE-SN" },
+  { code: "ST", name: "Sachsen-Anhalt", subdivisionCode: "DE-ST" },
+  { code: "SH", name: "Schleswig-Holstein", subdivisionCode: "DE-SH" },
+  { code: "TH", name: "Thüringen", subdivisionCode: "DE-TH" },
+];
+
 export const MEMBER_COLUMN_WIDTH = 180;
 export const METRIC_COLUMN_WIDTH = 36;
 export const MIN_DAY_CELL_WIDTH = 34;
