@@ -214,6 +214,29 @@ function showShareDialog(value) {
   dialog.showModal();
 }
 
+async function copyShareUrl(value) {
+  if (!value) {
+    return;
+  }
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+  } catch (error) {
+    // fallback below
+  }
+  const tempInput = document.createElement("input");
+  tempInput.value = value;
+  tempInput.setAttribute("readonly", "readonly");
+  tempInput.style.position = "absolute";
+  tempInput.style.left = "-9999px";
+  document.body.appendChild(tempInput);
+  tempInput.select();
+  document.execCommand("copy");
+  tempInput.remove();
+}
+
 function isImportPayload(value) {
   if (!value || typeof value !== "object") {
     return false;
@@ -381,6 +404,13 @@ function getShareDataFromUrl() {
   }
   const params = new URLSearchParams(window.location.hash.slice(1));
   return params.get("data");
+}
+
+function handleShareDataFromLocation() {
+  const payload = getShareDataFromUrl();
+  if (payload) {
+    void handleImportFromShare(payload);
+  }
 }
 
 function getSchoolHolidayStorageKey(year, state) {
@@ -1573,6 +1603,7 @@ const redoButton = document.getElementById("redo-button");
 const exportButton = document.getElementById("export-button");
 const importButton = document.getElementById("import-button");
 const shareButton = document.getElementById("share-button");
+const shareCopyButton = document.getElementById("share-copy");
 const importFileInput = document.getElementById("import-file");
 const prevYearButton = document.getElementById("prev-year");
 const nextYearButton = document.getElementById("next-year");
@@ -1591,6 +1622,14 @@ shareButton.addEventListener("click", async () => {
     window.alert("Teilen ist in diesem Browser leider nicht verfügbar.");
   }
 });
+if (shareCopyButton) {
+  shareCopyButton.addEventListener("click", () => {
+    const input = document.getElementById("share-url");
+    if (input) {
+      void copyShareUrl(input.value);
+    }
+  });
+}
 importFileInput.addEventListener("change", (event) => {
   const [file] = event.target.files || [];
   handleImportFile(file);
@@ -1598,4 +1637,5 @@ importFileInput.addEventListener("change", (event) => {
 prevYearButton.addEventListener("click", () => changeYear(-1));
 nextYearButton.addEventListener("click", () => changeYear(1));
 updateUndoRedoButtons();
-void handleImportFromShare(getShareDataFromUrl());
+handleShareDataFromLocation();
+window.addEventListener("hashchange", handleShareDataFromLocation);
