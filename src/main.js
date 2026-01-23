@@ -802,7 +802,7 @@ function buildTabs() {
   });
 }
 
-function renderCalendar() {
+function renderCalendar({ allowScrollbarReflow = true } = {}) {
   const scrollLeft = window.scrollX;
   const scrollTop = window.scrollY;
   buildTabs();
@@ -843,14 +843,24 @@ function renderCalendar() {
   activeTable = null;
   clearSelection();
   requestAnimationFrame(() => {
+    const currentScrollbarWidth = getViewportScrollbarWidth();
+    if (allowScrollbarReflow && currentScrollbarWidth > 0 && layout.scrollbarWidth === 0) {
+      renderCalendar({ allowScrollbarReflow: false });
+      return;
+    }
     window.scrollTo({ left: scrollLeft, top: scrollTop });
   });
+}
+
+function getViewportScrollbarWidth() {
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  return Math.max(0, window.innerWidth - viewportWidth);
 }
 
 function getTableLayout(container) {
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
   const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
-  const scrollbarWidth = Math.max(0, window.innerWidth - viewportWidth);
+  const scrollbarWidth = getViewportScrollbarWidth();
   const adjustedContainerWidth = Math.max(0, containerWidth - scrollbarWidth);
   const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
   const availableWidth = Math.max(0, adjustedContainerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
@@ -858,7 +868,7 @@ function getTableLayout(container) {
   const maxColumnsPerTable = Math.max(2, Math.floor(availableWidth / minCellTotal) || 1);
   const usableWidth = Math.max(0, availableWidth - maxColumnsPerTable * CELL_BOX_EXTRA);
   const dayCellWidth = Math.max(24, Math.floor(usableWidth / maxColumnsPerTable));
-  return { maxColumnsPerTable, dayCellWidth };
+  return { maxColumnsPerTable, dayCellWidth, scrollbarWidth };
 }
 
 function splitDayColumns(dayColumns, maxColumnsPerTable) {
