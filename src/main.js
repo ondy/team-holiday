@@ -847,15 +847,35 @@ function renderCalendar() {
   });
 }
 
+let cachedScrollbarWidth = null;
+
+function getScrollbarWidth() {
+  if (cachedScrollbarWidth !== null) {
+    return cachedScrollbarWidth;
+  }
+  const measure = document.createElement("div");
+  measure.style.position = "absolute";
+  measure.style.top = "-9999px";
+  measure.style.width = "100px";
+  measure.style.height = "100px";
+  measure.style.overflow = "scroll";
+  document.body.appendChild(measure);
+  cachedScrollbarWidth = Math.max(0, measure.offsetWidth - measure.clientWidth);
+  document.body.removeChild(measure);
+  return cachedScrollbarWidth;
+}
+
 function getTableLayout(container) {
   const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
+  const scrollbarWidth = getScrollbarWidth();
+  const adjustedContainerWidth = Math.max(0, containerWidth - scrollbarWidth - 10);
   const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
-  const availableWidth = Math.max(0, containerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
+  const availableWidth = Math.max(0, adjustedContainerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
   const minCellTotal = MIN_DAY_CELL_WIDTH + CELL_BOX_EXTRA;
   const maxColumnsPerTable = Math.max(2, Math.floor(availableWidth / minCellTotal) || 1);
   const usableWidth = Math.max(0, availableWidth - maxColumnsPerTable * CELL_BOX_EXTRA);
   const dayCellWidth = Math.max(24, Math.floor(usableWidth / maxColumnsPerTable));
-  return { maxColumnsPerTable, dayCellWidth };
+  return { maxColumnsPerTable, dayCellWidth, scrollbarWidth };
 }
 
 function splitDayColumns(dayColumns, maxColumnsPerTable) {
