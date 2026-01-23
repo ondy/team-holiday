@@ -697,6 +697,20 @@ function formatCount(value) {
   return formatted;
 }
 
+function formatRestVacation(value) {
+  const absValue = Math.abs(value);
+  const formatted = Number.isInteger(absValue) ? String(absValue) : String(absValue).replace(".", ",");
+  return `${value >= 0 ? "+" : "-"}${formatted}`;
+}
+
+function getRestVacation({ currentValue, usedCurrent, prevYearValue, usedPrev }) {
+  if (!Number.isFinite(currentValue)) {
+    return null;
+  }
+  const previousRest = Number.isFinite(prevYearValue) ? prevYearValue - usedPrev : 0;
+  return currentValue - usedCurrent + previousRest;
+}
+
 function isExcludedVacationDay(year, monthIndex, day) {
   const date = new Date(year, monthIndex, day);
   const isWeekend = [0, 6].includes(date.getDay());
@@ -812,11 +826,13 @@ function renderCalendar() {
   container.innerHTML = "";
 
   const yearData = getYearData(activeYear);
+  const prevYearData = data.years?.[activeYear - 1] ?? null;
   const monthData = getMonthData(activeYear, activeMonth);
   const daysInMonth = getDaysInMonth(activeYear, activeMonth);
   const dayColumns = buildDayColumns(activeYear, activeMonth);
   const layout = getTableLayout(container);
   const yearCounts = getYearStatusCounts(activeYear);
+  const prevYearCounts = prevYearData ? getYearStatusCounts(activeYear - 1) : null;
 
   container.style.setProperty("--day-cell-width", `${layout.dayCellWidth}px`);
   const tableSegments = splitDayColumns(dayColumns, layout.maxColumnsPerTable);
@@ -830,7 +846,9 @@ function renderCalendar() {
       allowMemberEdit,
       includeNewRow,
       yearData,
+      prevYearData,
       yearCounts,
+      prevYearCounts,
       monthData,
       dayCellWidth: layout.dayCellWidth,
     });
@@ -906,7 +924,10 @@ function splitDayColumns(dayColumns, maxColumnsPerTable) {
   return segments;
 }
 
-function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yearData, yearCounts, dayCellWidth }) {
+function buildTable(
+  dayColumns,
+  { allowMemberEdit, includeNewRow, monthData, yearData, prevYearData, yearCounts, prevYearCounts, dayCellWidth }
+) {
   const table = document.createElement("table");
   const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
   const tableWidth = MEMBER_COLUMN_WIDTH + metricWidth + dayCellWidth * dayColumns.length;
@@ -1043,7 +1064,29 @@ function buildTable(dayColumns, { allowMemberEdit, includeNewRow, monthData, yea
             saveData(data);
             renderCalendar();
           });
-          td.appendChild(input);
+          const inputWrapper = document.createElement("div");
+          inputWrapper.className = "vacation-input";
+          inputWrapper.appendChild(input);
+          if (column.key === "vacationDays") {
+            const prevStoredValue = prevYearData?.vacationDays?.[index];
+            const prevValue = Number(prevStoredValue);
+            const usedCurrent = yearCounts?.[index]?.urlaub ?? 0;
+            const usedPrev = prevYearCounts?.[index]?.urlaub ?? 0;
+            const restVacation = getRestVacation({
+              currentValue,
+              usedCurrent,
+              prevYearValue: prevValue,
+              usedPrev,
+            });
+            if (restVacation !== null) {
+              const restSpan = document.createElement("span");
+              restSpan.className = "vacation-rest";
+              restSpan.classList.toggle("vacation-rest-negative", restVacation < 0);
+              restSpan.textContent = formatRestVacation(restVacation);
+              inputWrapper.appendChild(restSpan);
+            }
+          }
+          td.appendChild(inputWrapper);
         }
       } else if (memberCounts) {
         td.textContent = formatCount(memberCounts[column.key]);
