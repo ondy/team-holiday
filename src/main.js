@@ -850,7 +850,8 @@ function renderCalendar() {
 function getTableLayout(container) {
   const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
   const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
-  const adjustedContainerWidth = Math.min(containerWidth, viewportWidth);
+  const scrollbarWidth = Math.max(0, window.innerWidth - viewportWidth);
+  const adjustedContainerWidth = Math.max(0, containerWidth - scrollbarWidth);
   const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
   const availableWidth = Math.max(0, adjustedContainerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
   const minCellTotal = MIN_DAY_CELL_WIDTH + CELL_BOX_EXTRA;
