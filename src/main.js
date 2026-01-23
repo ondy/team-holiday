@@ -802,7 +802,7 @@ function buildTabs() {
   });
 }
 
-function renderCalendar({ allowScrollbarReflow = true } = {}) {
+function renderCalendar() {
   const scrollLeft = window.scrollX;
   const scrollTop = window.scrollY;
   buildTabs();
@@ -843,24 +843,31 @@ function renderCalendar({ allowScrollbarReflow = true } = {}) {
   activeTable = null;
   clearSelection();
   requestAnimationFrame(() => {
-    const currentScrollbarWidth = getViewportScrollbarWidth();
-    if (allowScrollbarReflow && currentScrollbarWidth > 0 && layout.scrollbarWidth === 0) {
-      renderCalendar({ allowScrollbarReflow: false });
-      return;
-    }
     window.scrollTo({ left: scrollLeft, top: scrollTop });
   });
 }
 
-function getViewportScrollbarWidth() {
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
-  return Math.max(0, window.innerWidth - viewportWidth);
+let cachedScrollbarWidth = null;
+
+function getScrollbarWidth() {
+  if (cachedScrollbarWidth !== null) {
+    return cachedScrollbarWidth;
+  }
+  const measure = document.createElement("div");
+  measure.style.position = "absolute";
+  measure.style.top = "-9999px";
+  measure.style.width = "100px";
+  measure.style.height = "100px";
+  measure.style.overflow = "scroll";
+  document.body.appendChild(measure);
+  cachedScrollbarWidth = Math.max(0, measure.offsetWidth - measure.clientWidth);
+  document.body.removeChild(measure);
+  return cachedScrollbarWidth;
 }
 
 function getTableLayout(container) {
-  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
   const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
-  const scrollbarWidth = getViewportScrollbarWidth();
+  const scrollbarWidth = getScrollbarWidth();
   const adjustedContainerWidth = Math.max(0, containerWidth - scrollbarWidth);
   const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
   const availableWidth = Math.max(0, adjustedContainerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
