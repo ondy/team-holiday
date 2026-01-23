@@ -144,6 +144,7 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 8px;
   margin-bottom: 16px;
 }
 
@@ -476,7 +477,7 @@ td.day-cell.holiday.status-gleittag > * {
 }
 
 .legend-item--select label {
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .legend-item--select select {
@@ -507,8 +508,8 @@ td.day-cell.holiday.status-gleittag > * {
 
 .build-info {
   position: fixed;
-  left: 12px;
-  bottom: 10px;
+  top: 10px;
+  right: 12px;
   font-size: 11px;
   color: #6b7280;
 }
