@@ -790,7 +790,7 @@ const holidayNameMap = new Map();
 updateHolidayMaps(activeYear, holidaySet, holidayNameMap);
 
 const metricColumns = [
-  { key: "vacationDays", label: "Urlaubstage", editable: true, width: 52 },
+  { key: "vacationDays", label: "Urlaubstage", editable: true, width: 72 },
   { key: "urlaub", label: "Urlaub", width: 26 },
   { key: "sonderurlaub", label: "Sonderurlaub", width: 26 },
   { key: "krank", label: "Krank", width: 26 },
