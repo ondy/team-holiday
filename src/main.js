@@ -868,7 +868,7 @@ function getScrollbarWidth() {
 function getTableLayout(container) {
   const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
   const scrollbarWidth = getScrollbarWidth();
-  const adjustedContainerWidth = Math.max(0, containerWidth - scrollbarWidth);
+  const adjustedContainerWidth = Math.max(0, containerWidth - scrollbarWidth - 10);
   const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
   const availableWidth = Math.max(0, adjustedContainerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
   const minCellTotal = MIN_DAY_CELL_WIDTH + CELL_BOX_EXTRA;
