@@ -803,6 +803,8 @@ function buildTabs() {
 }
 
 function renderCalendar() {
+  const scrollLeft = window.scrollX;
+  const scrollTop = window.scrollY;
   buildTabs();
   const title = document.getElementById("page-title");
   title.textContent = `${activeYear}`;
@@ -840,6 +842,9 @@ function renderCalendar() {
 
   activeTable = null;
   clearSelection();
+  requestAnimationFrame(() => {
+    window.scrollTo({ left: scrollLeft, top: scrollTop });
+  });
 }
 
 function getTableLayout(container) {
