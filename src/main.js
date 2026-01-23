@@ -780,6 +780,25 @@ function getYearStatusCounts(year) {
   return countsByMember;
 }
 
+function hydrateVacationDaysFromPreviousYear(yearData, prevYearData) {
+  if (!yearData?.vacationDays || !prevYearData?.vacationDays) {
+    return false;
+  }
+  let didUpdate = false;
+  data.members.forEach((_member, index) => {
+    const currentValue = Number(yearData.vacationDays[index]);
+    if (Number.isFinite(currentValue)) {
+      return;
+    }
+    const prevValue = Number(prevYearData.vacationDays[index]);
+    if (Number.isFinite(prevValue)) {
+      yearData.vacationDays[index] = prevValue;
+      didUpdate = true;
+    }
+  });
+  return didUpdate;
+}
+
 function getDaysInMonth(year, monthIndex) {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
@@ -827,6 +846,10 @@ function renderCalendar() {
 
   const yearData = getYearData(activeYear);
   const prevYearData = data.years?.[activeYear - 1] ?? null;
+  const didHydrateVacationDays = hydrateVacationDaysFromPreviousYear(yearData, prevYearData);
+  if (didHydrateVacationDays) {
+    saveData(data);
+  }
   const monthData = getMonthData(activeYear, activeMonth);
   const daysInMonth = getDaysInMonth(activeYear, activeMonth);
   const dayColumns = buildDayColumns(activeYear, activeMonth);
