@@ -12,10 +12,10 @@ import {
 import { updateHolidayMaps } from "./holidays.js";
 import { applySnapshot, loadData, normalizeData, saveData, snapshotData, sortMembersAndReindex } from "./storage.js";
 
-const now = new Date();
-const currentYear = now.getFullYear();
-const currentMonthIndex = now.getMonth();
-const currentDay = now.getDate();
+const initialDate = new Date();
+let currentYear = initialDate.getFullYear();
+let currentMonthIndex = initialDate.getMonth();
+let currentDay = initialDate.getDate();
 let activeMonth = 0;
 let activeYear = currentYear;
 const statusLabelMap = new Map(statusOptions.map((option) => [option.value, option.label]));
@@ -38,6 +38,22 @@ const selectedCells = new Map();
 let activeTable = null;
 let justOpenedMenu = false;
 let resizeTimer = null;
+
+function refreshCurrentDate() {
+  const now = new Date();
+  const nextYear = now.getFullYear();
+  const nextMonthIndex = now.getMonth();
+  const nextDay = now.getDate();
+  const didChange =
+    nextYear !== currentYear || nextMonthIndex !== currentMonthIndex || nextDay !== currentDay;
+  if (!didChange) {
+    return false;
+  }
+  currentYear = nextYear;
+  currentMonthIndex = nextMonthIndex;
+  currentDay = nextDay;
+  return true;
+}
 
 const buildInfo = document.getElementById("build-info");
 if (buildInfo) {
@@ -1677,6 +1693,16 @@ function handleResize() {
 }
 
 window.addEventListener("resize", handleResize);
+
+function handleWindowFocus() {
+  if (!refreshCurrentDate()) {
+    return;
+  }
+  renderCalendar();
+  loadSchoolHolidaysForYears(getSchoolHolidayYearsToLoad(), activeSchoolHolidayState);
+}
+
+window.addEventListener("focus", handleWindowFocus);
 
 function changeYear(delta) {
   activeYear += delta;
