@@ -16,7 +16,7 @@ const initialDate = new Date();
 let currentYear = initialDate.getFullYear();
 let currentMonthIndex = initialDate.getMonth();
 let currentDay = initialDate.getDate();
-let activeMonth = 0;
+let activeMonth = currentMonthIndex;
 let activeYear = currentYear;
 const statusLabelMap = new Map(statusOptions.map((option) => [option.value, option.label]));
 
