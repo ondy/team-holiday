@@ -38,6 +38,8 @@ const selectedCells = new Map();
 let activeTable = null;
 let justOpenedMenu = false;
 let resizeTimer = null;
+const MAX_SECOND_ROW_OVERFLOW_COLUMNS = 2;
+const MIN_SQUEEZED_DAY_CELL_WIDTH = MIN_DAY_CELL_WIDTH - 2;
 
 function refreshCurrentDate() {
   const now = new Date();
@@ -869,7 +871,7 @@ function renderCalendar() {
   const monthData = getMonthData(activeYear, activeMonth);
   const daysInMonth = getDaysInMonth(activeYear, activeMonth);
   const dayColumns = buildDayColumns(activeYear, activeMonth);
-  const layout = getTableLayout(container);
+  const layout = getTableLayout(container, dayColumns.length);
   const yearCounts = getYearStatusCounts(activeYear);
   const prevYearCounts = prevYearData ? getYearStatusCounts(activeYear - 1) : null;
 
@@ -922,14 +924,26 @@ function getScrollbarWidth() {
   return cachedScrollbarWidth;
 }
 
-function getTableLayout(container) {
+function getTableLayout(container, totalDayColumns = 0) {
   const containerWidth = container.clientWidth || container.getBoundingClientRect().width || window.innerWidth;
   const scrollbarWidth = getScrollbarWidth();
   const adjustedContainerWidth = Math.max(0, containerWidth - scrollbarWidth - 10);
   const metricWidth = metricColumns.reduce((total, column) => total + (column.width || METRIC_COLUMN_WIDTH), 0);
   const availableWidth = Math.max(0, adjustedContainerWidth - MEMBER_COLUMN_WIDTH - metricWidth);
   const minCellTotal = MIN_DAY_CELL_WIDTH + CELL_BOX_EXTRA;
-  const maxColumnsPerTable = Math.max(2, Math.floor(availableWidth / minCellTotal) || 1);
+  let maxColumnsPerTable = Math.max(2, Math.floor(availableWidth / minCellTotal) || 1);
+
+  if (totalDayColumns > maxColumnsPerTable) {
+    const overflowColumns = totalDayColumns - maxColumnsPerTable;
+    if (overflowColumns <= MAX_SECOND_ROW_OVERFLOW_COLUMNS) {
+      const squeezedUsableWidth = Math.max(0, availableWidth - totalDayColumns * CELL_BOX_EXTRA);
+      const squeezedDayCellWidth = Math.floor(squeezedUsableWidth / totalDayColumns);
+      if (squeezedDayCellWidth >= MIN_SQUEEZED_DAY_CELL_WIDTH) {
+        maxColumnsPerTable = totalDayColumns;
+      }
+    }
+  }
+
   const usableWidth = Math.max(0, availableWidth - maxColumnsPerTable * CELL_BOX_EXTRA);
   const dayCellWidth = Math.max(24, Math.floor(usableWidth / maxColumnsPerTable));
   return { maxColumnsPerTable, dayCellWidth, scrollbarWidth };
