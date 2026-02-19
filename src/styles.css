@@ -529,9 +529,8 @@ td.day-cell.holiday.status-gleittag > * {
 }
 
 .build-info {
-  position: fixed;
-  top: 10px;
-  right: 12px;
+  margin-top: 20px;
+  text-align: right;
   font-size: 11px;
   color: #6b7280;
 }
