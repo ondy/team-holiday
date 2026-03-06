@@ -355,14 +355,51 @@ td.day-cell.holiday.status-gleittag > * {
   top: 2px;
   right: 2px;
   display: none;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  padding: 2px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: 0;
   z-index: 3;
 }
 
+.vacation-cell .approval-toggle input {
+  margin: 0;
+}
+
 .vacation-cell:hover .approval-toggle {
+  display: block;
+}
+
+.vacation-cell .vacation-copy-button {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  z-index: 3;
+  transition: transform 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.vacation-cell .vacation-copy-button:hover {
+  background: #fff;
+}
+
+.vacation-cell .vacation-copy-button.is-copied {
+  background: #dcfce7;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
+  transform: scale(1.08);
+}
+
+.vacation-cell:hover .vacation-copy-button {
   display: block;
 }
 

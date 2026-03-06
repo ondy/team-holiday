@@ -564,6 +564,58 @@ function formatHolidayDate(date) {
   return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
 }
 
+function formatVacationRangeDate(date) {
+  return `${date.getDate()}.${date.getMonth() + 1}.`;
+}
+
+function isWeekday(date) {
+  const dayOfWeek = date.getDay();
+  return dayOfWeek >= 1 && dayOfWeek <= 5;
+}
+
+function isWorkday(date) {
+  if (!isWeekday(date)) {
+    return false;
+  }
+  const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return !holidaySet.has(dateKey);
+}
+
+function formatWeekRangeLabel(vacationDates, referenceDate) {
+  if (!vacationDates.length) {
+    return "KW -";
+  }
+  const weekStats = new Map();
+  vacationDates.forEach((date) => {
+    const weekInfo = getIsoWeekInfo(date);
+    const key = `${weekInfo.isoYear}-${weekInfo.week}`;
+    const existing = weekStats.get(key) || { ...weekInfo, key, workdayCount: 0 };
+    if (isWorkday(date)) {
+      existing.workdayCount += 1;
+    }
+    weekStats.set(key, existing);
+  });
+
+  const orderedWeeks = Array.from(weekStats.values()).sort(
+    (a, b) => a.isoYear - b.isoYear || a.week - b.week
+  );
+  const weeksToUse = orderedWeeks.filter((weekInfo) => weekInfo.workdayCount >= 2);
+
+  if (!weeksToUse.length) {
+    const refWeek = getIsoWeekInfo(referenceDate);
+    return `KW ${refWeek.week}`;
+  }
+  if (weeksToUse.length === 1) {
+    return `KW ${weeksToUse[0].week}`;
+  }
+  return `KW ${weeksToUse[0].week}-${weeksToUse[weeksToUse.length - 1].week}`;
+}
+
+function buildVacationCopyText(memberName, startDate, endDate, vacationDates, referenceDate) {
+  const safeName = memberName?.trim() || "Unbekannt";
+  return `${safeName}: ${formatVacationRangeDate(startDate)} bis ${formatVacationRangeDate(endDate)}, ${formatWeekRangeLabel(vacationDates, referenceDate)}`;
+}
+
 function clearSchoolHolidays() {
   schoolHolidayDates.clear();
   schoolHolidayInfoMap.clear();
@@ -1259,6 +1311,26 @@ function buildTable(
           });
           approvalToggle.appendChild(checkbox);
           td.appendChild(approvalToggle);
+
+          const copyButton = document.createElement("button");
+          copyButton.type = "button";
+          copyButton.className = "vacation-copy-button";
+          copyButton.textContent = "📋";
+          copyButton.title = "Urlaubsinfo kopieren";
+          copyButton.setAttribute("aria-label", "Urlaubsinfo kopieren");
+          copyButton.addEventListener("mousedown", (event) => {
+            event.stopPropagation();
+          });
+          copyButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            void copyVacationBlock(index, dayInfo).then(() => {
+              copyButton.classList.add("is-copied");
+              window.setTimeout(() => {
+                copyButton.classList.remove("is-copied");
+              }, 550);
+            });
+          });
+          td.appendChild(copyButton);
         }
       }
 
@@ -1586,6 +1658,58 @@ function getVacationBlock(memberIndex, day, monthData) {
     end += 1;
   }
   return { start, end };
+}
+
+function getMemberStatusForDate(memberIndex, date) {
+  const monthData = getMonthData(date.getFullYear(), date.getMonth());
+  return monthData.days?.[memberIndex]?.[date.getDate()] || "";
+}
+
+function getVacationBlockRange(memberIndex, referenceDate) {
+  const startDate = new Date(referenceDate);
+  const endDate = new Date(referenceDate);
+
+  while (true) {
+    const previousDate = new Date(startDate);
+    previousDate.setDate(previousDate.getDate() - 1);
+    if (!isVacationStatus(getMemberStatusForDate(memberIndex, previousDate))) {
+      break;
+    }
+    startDate.setDate(startDate.getDate() - 1);
+  }
+
+  while (true) {
+    const nextDate = new Date(endDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    if (!isVacationStatus(getMemberStatusForDate(memberIndex, nextDate))) {
+      break;
+    }
+    endDate.setDate(endDate.getDate() + 1);
+  }
+
+  return { startDate, endDate };
+}
+
+function buildDateRange(startDate, endDate) {
+  const dates = [];
+  const currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    dates.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  return dates;
+}
+
+async function copyVacationBlock(memberIndex, dayInfo) {
+  const selectedDate = new Date(dayInfo.year, dayInfo.monthIndex, dayInfo.day);
+  if (!isVacationStatus(getMemberStatusForDate(memberIndex, selectedDate))) {
+    return;
+  }
+  const { startDate, endDate } = getVacationBlockRange(memberIndex, selectedDate);
+  const vacationDates = buildDateRange(startDate, endDate);
+  const memberName = data.members[memberIndex]?.name;
+  const copyText = buildVacationCopyText(memberName, startDate, endDate, vacationDates, selectedDate);
+  await copyShareUrl(copyText);
 }
 
 function toggleVacationApproval(memberIndex, day) {
