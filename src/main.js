@@ -564,6 +564,24 @@ function formatHolidayDate(date) {
   return `${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}.${date.getFullYear()}`;
 }
 
+function formatVacationRangeDate(date) {
+  return `${date.getDate()}.${date.getMonth() + 1}.`;
+}
+
+function formatWeekRangeLabel(startDate, endDate) {
+  const startWeekInfo = getIsoWeekInfo(startDate);
+  const endWeekInfo = getIsoWeekInfo(endDate);
+  if (startWeekInfo.isoYear === endWeekInfo.isoYear && startWeekInfo.week === endWeekInfo.week) {
+    return `KW ${startWeekInfo.week}`;
+  }
+  return `KW ${startWeekInfo.week}-${endWeekInfo.week}`;
+}
+
+function buildVacationCopyText(memberName, startDate, endDate) {
+  const safeName = memberName?.trim() || "Unbekannt";
+  return `${safeName}: ${formatVacationRangeDate(startDate)} bis ${formatVacationRangeDate(endDate)}, ${formatWeekRangeLabel(startDate, endDate)}`;
+}
+
 function clearSchoolHolidays() {
   schoolHolidayDates.clear();
   schoolHolidayInfoMap.clear();
@@ -1259,6 +1277,21 @@ function buildTable(
           });
           approvalToggle.appendChild(checkbox);
           td.appendChild(approvalToggle);
+
+          const copyButton = document.createElement("button");
+          copyButton.type = "button";
+          copyButton.className = "vacation-copy-button";
+          copyButton.textContent = "📋";
+          copyButton.title = "Urlaubsinfo kopieren";
+          copyButton.setAttribute("aria-label", "Urlaubsinfo kopieren");
+          copyButton.addEventListener("mousedown", (event) => {
+            event.stopPropagation();
+          });
+          copyButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            void copyVacationBlock(index, dayInfo);
+          });
+          td.appendChild(copyButton);
         }
       }
 
@@ -1586,6 +1619,19 @@ function getVacationBlock(memberIndex, day, monthData) {
     end += 1;
   }
   return { start, end };
+}
+
+async function copyVacationBlock(memberIndex, dayInfo) {
+  const targetMonthData = getMonthData(dayInfo.year, dayInfo.monthIndex);
+  if (!isVacationStatus(targetMonthData.days?.[memberIndex]?.[dayInfo.day])) {
+    return;
+  }
+  const { start, end } = getVacationBlock(memberIndex, dayInfo.day, targetMonthData);
+  const memberName = data.members[memberIndex]?.name;
+  const startDate = new Date(dayInfo.year, dayInfo.monthIndex, start);
+  const endDate = new Date(dayInfo.year, dayInfo.monthIndex, end);
+  const copyText = buildVacationCopyText(memberName, startDate, endDate);
+  await copyShareUrl(copyText);
 }
 
 function toggleVacationApproval(memberIndex, day) {

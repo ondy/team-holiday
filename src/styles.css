@@ -366,6 +366,32 @@ td.day-cell.holiday.status-gleittag > * {
   display: block;
 }
 
+
+.vacation-cell .vacation-copy-button {
+  position: absolute;
+  top: 2px;
+  right: 26px;
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  z-index: 3;
+}
+
+.vacation-cell .vacation-copy-button:hover {
+  background: #fff;
+}
+
+.vacation-cell:hover .vacation-copy-button {
+  display: block;
+}
+
 .vacation-approved::after {
   content: "✓";
   position: absolute;
