@@ -821,6 +821,16 @@ function getDaysInMonth(year, monthIndex) {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
 
+function getIsoWeekInfo(date) {
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const isoYear = utcDate.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+  const week = Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
+  return { isoYear, week };
+}
+
 const holidaySet = new Set();
 const holidayNameMap = new Map();
 
@@ -1254,6 +1264,49 @@ function buildTable(
     summaryRow.appendChild(summaryCell);
   });
   tfoot.appendChild(summaryRow);
+
+  const weekRow = document.createElement("tr");
+  weekRow.className = "calendar-week-row";
+
+  const weekLabelCell = document.createElement("td");
+  weekLabelCell.className = "member-column mini-cell week-row-spacer";
+  weekLabelCell.textContent = "";
+  weekRow.appendChild(weekLabelCell);
+
+  metricColumns.forEach((column) => {
+    const spacerCell = document.createElement("td");
+    spacerCell.className = "mini-cell metric-cell week-row-spacer";
+    spacerCell.dataset.col = `metric-${column.key}`;
+    const columnWidth = column.width || METRIC_COLUMN_WIDTH;
+    spacerCell.style.width = `${columnWidth}px`;
+    spacerCell.style.minWidth = `${columnWidth}px`;
+    weekRow.appendChild(spacerCell);
+  });
+
+  let columnIndex = 0;
+  while (columnIndex < dayColumns.length) {
+    const dayInfo = dayColumns[columnIndex];
+    const { isoYear, week } = getIsoWeekInfo(dayInfo.date);
+    let span = 1;
+    while (columnIndex + span < dayColumns.length) {
+      const nextInfo = dayColumns[columnIndex + span];
+      const nextWeekInfo = getIsoWeekInfo(nextInfo.date);
+      if (nextWeekInfo.isoYear !== isoYear || nextWeekInfo.week !== week) {
+        break;
+      }
+      span += 1;
+    }
+
+    const weekCell = document.createElement("td");
+    weekCell.className = "mini-cell day-cell calendar-week-cell";
+    weekCell.dataset.weekParity = week % 2 === 0 ? "even" : "odd";
+    weekCell.colSpan = span;
+    weekCell.textContent = `KW ${week}`;
+    weekRow.appendChild(weekCell);
+    columnIndex += span;
+  }
+
+  tfoot.appendChild(weekRow);
   table.appendChild(tfoot);
 
   return table;

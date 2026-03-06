@@ -564,6 +564,26 @@ td.day-cell.holiday.status-gleittag > * {
   color: #555;
 }
 
+.week-row-spacer {
+  background: #f8fafc;
+}
+
+.calendar-week-cell {
+  font-size: 10px;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.calendar-week-cell[data-week-parity="odd"] {
+  background: #ececec;
+}
+
+.calendar-week-cell[data-week-parity="even"] {
+  background: #d6d6d6;
+}
+
 .day-cell {
   width: var(--day-cell-width);
   min-width: var(--day-cell-width);
