@@ -573,7 +573,15 @@ function isWeekday(date) {
   return dayOfWeek >= 1 && dayOfWeek <= 5;
 }
 
-function formatWeekRangeLabel(vacationDates, startDate) {
+function isWorkday(date) {
+  if (!isWeekday(date)) {
+    return false;
+  }
+  const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return !holidaySet.has(dateKey);
+}
+
+function formatWeekRangeLabel(vacationDates, referenceDate) {
   if (!vacationDates.length) {
     return "KW -";
   }
@@ -581,9 +589,9 @@ function formatWeekRangeLabel(vacationDates, startDate) {
   vacationDates.forEach((date) => {
     const weekInfo = getIsoWeekInfo(date);
     const key = `${weekInfo.isoYear}-${weekInfo.week}`;
-    const existing = weekStats.get(key) || { ...weekInfo, key, weekdayCount: 0 };
-    if (isWeekday(date)) {
-      existing.weekdayCount += 1;
+    const existing = weekStats.get(key) || { ...weekInfo, key, workdayCount: 0 };
+    if (isWorkday(date)) {
+      existing.workdayCount += 1;
     }
     weekStats.set(key, existing);
   });
@@ -591,21 +599,21 @@ function formatWeekRangeLabel(vacationDates, startDate) {
   const orderedWeeks = Array.from(weekStats.values()).sort(
     (a, b) => a.isoYear - b.isoYear || a.week - b.week
   );
-  const startWeekInfo = getIsoWeekInfo(startDate);
-  const startWeekKey = `${startWeekInfo.isoYear}-${startWeekInfo.week}`;
-  const weeksToUse = orderedWeeks.filter(
-    (weekInfo) => weekInfo.key === startWeekKey || weekInfo.weekdayCount >= 2
-  );
+  const weeksToUse = orderedWeeks.filter((weekInfo) => weekInfo.workdayCount >= 2);
 
+  if (!weeksToUse.length) {
+    const refWeek = getIsoWeekInfo(referenceDate);
+    return `KW ${refWeek.week}`;
+  }
   if (weeksToUse.length === 1) {
     return `KW ${weeksToUse[0].week}`;
   }
   return `KW ${weeksToUse[0].week}-${weeksToUse[weeksToUse.length - 1].week}`;
 }
 
-function buildVacationCopyText(memberName, startDate, endDate, vacationDates) {
+function buildVacationCopyText(memberName, startDate, endDate, vacationDates, referenceDate) {
   const safeName = memberName?.trim() || "Unbekannt";
-  return `${safeName}: ${formatVacationRangeDate(startDate)} bis ${formatVacationRangeDate(endDate)}, ${formatWeekRangeLabel(vacationDates, startDate)}`;
+  return `${safeName}: ${formatVacationRangeDate(startDate)} bis ${formatVacationRangeDate(endDate)}, ${formatWeekRangeLabel(vacationDates, referenceDate)}`;
 }
 
 function clearSchoolHolidays() {
@@ -1695,7 +1703,7 @@ async function copyVacationBlock(memberIndex, dayInfo) {
   const { startDate, endDate } = getVacationBlockRange(memberIndex, selectedDate);
   const vacationDates = buildDateRange(startDate, endDate);
   const memberName = data.members[memberIndex]?.name;
-  const copyText = buildVacationCopyText(memberName, startDate, endDate, vacationDates);
+  const copyText = buildVacationCopyText(memberName, startDate, endDate, vacationDates, selectedDate);
   await copyShareUrl(copyText);
 }
 
