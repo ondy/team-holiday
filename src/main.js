@@ -821,6 +821,16 @@ function getDaysInMonth(year, monthIndex) {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
 
+function getIsoWeekInfo(date) {
+  const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = utcDate.getUTCDay() || 7;
+  utcDate.setUTCDate(utcDate.getUTCDate() + 4 - day);
+  const isoYear = utcDate.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+  const week = Math.ceil(((utcDate - yearStart) / 86400000 + 1) / 7);
+  return { isoYear, week };
+}
+
 const holidaySet = new Set();
 const holidayNameMap = new Map();
 
@@ -1008,13 +1018,60 @@ function buildTable(
     headerRow.appendChild(th);
   });
 
+  const weekOverlayByColumn = new Map();
+  let weekColumnIndex = 0;
+  while (weekColumnIndex < dayColumns.length) {
+    const dayInfo = dayColumns[weekColumnIndex];
+    const { isoYear, week } = getIsoWeekInfo(dayInfo.date);
+    let span = 1;
+    while (weekColumnIndex + span < dayColumns.length) {
+      const nextInfo = dayColumns[weekColumnIndex + span];
+      const nextWeekInfo = getIsoWeekInfo(nextInfo.date);
+      if (nextWeekInfo.isoYear !== isoYear || nextWeekInfo.week !== week) {
+        break;
+      }
+      span += 1;
+    }
+    const labelIndex = weekColumnIndex + Math.floor((span - 1) / 2);
+    for (let offset = 0; offset < span; offset += 1) {
+      const currentIndex = weekColumnIndex + offset;
+      weekOverlayByColumn.set(currentIndex, {
+        week,
+        parity: week % 2 === 0 ? "even" : "odd",
+        showLabel: currentIndex === labelIndex,
+      });
+    }
+    weekColumnIndex += span;
+  }
+
   dayColumns.forEach((dayInfo, columnIndex) => {
     const th = document.createElement("th");
-    th.className = "day-cell";
+    th.className = "day-cell day-header-cell";
     const baseLabel = `${String(dayInfo.day).padStart(2, "0")}.${String(dayInfo.month).padStart(2, "0")}`;
     const dayLabel = baseLabel;
     const weekday = dayInfo.date.toLocaleDateString("de-DE", { weekday: "short" });
-    th.innerHTML = `${dayLabel}<div class="day-short">${weekday}</div>`;
+
+    const label = document.createElement("div");
+    label.className = "day-label";
+    label.textContent = dayLabel;
+    th.appendChild(label);
+
+    const weekdayLabel = document.createElement("div");
+    weekdayLabel.className = "day-short";
+    weekdayLabel.textContent = weekday;
+    th.appendChild(weekdayLabel);
+
+    const weekOverlay = document.createElement("div");
+    const weekOverlayInfo = weekOverlayByColumn.get(columnIndex);
+    weekOverlay.className = "day-week-overlay";
+    if (weekOverlayInfo) {
+      weekOverlay.dataset.weekParity = weekOverlayInfo.parity;
+      if (weekOverlayInfo.showLabel) {
+        weekOverlay.textContent = `KW ${weekOverlayInfo.week}`;
+      }
+    }
+    th.appendChild(weekOverlay);
+
     th.dataset.col = `col-${columnIndex}`;
     if (dayInfo.inMonth) {
       th.dataset.day = String(dayInfo.day);
@@ -1254,6 +1311,7 @@ function buildTable(
     summaryRow.appendChild(summaryCell);
   });
   tfoot.appendChild(summaryRow);
+
   table.appendChild(tfoot);
 
   return table;
