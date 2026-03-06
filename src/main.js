@@ -568,18 +568,44 @@ function formatVacationRangeDate(date) {
   return `${date.getDate()}.${date.getMonth() + 1}.`;
 }
 
-function formatWeekRangeLabel(startDate, endDate) {
-  const startWeekInfo = getIsoWeekInfo(startDate);
-  const endWeekInfo = getIsoWeekInfo(endDate);
-  if (startWeekInfo.isoYear === endWeekInfo.isoYear && startWeekInfo.week === endWeekInfo.week) {
-    return `KW ${startWeekInfo.week}`;
-  }
-  return `KW ${startWeekInfo.week}-${endWeekInfo.week}`;
+function isWeekday(date) {
+  const dayOfWeek = date.getDay();
+  return dayOfWeek >= 1 && dayOfWeek <= 5;
 }
 
-function buildVacationCopyText(memberName, startDate, endDate) {
+function formatWeekRangeLabel(vacationDates, startDate) {
+  if (!vacationDates.length) {
+    return "KW -";
+  }
+  const weekStats = new Map();
+  vacationDates.forEach((date) => {
+    const weekInfo = getIsoWeekInfo(date);
+    const key = `${weekInfo.isoYear}-${weekInfo.week}`;
+    const existing = weekStats.get(key) || { ...weekInfo, key, weekdayCount: 0 };
+    if (isWeekday(date)) {
+      existing.weekdayCount += 1;
+    }
+    weekStats.set(key, existing);
+  });
+
+  const orderedWeeks = Array.from(weekStats.values()).sort(
+    (a, b) => a.isoYear - b.isoYear || a.week - b.week
+  );
+  const startWeekInfo = getIsoWeekInfo(startDate);
+  const startWeekKey = `${startWeekInfo.isoYear}-${startWeekInfo.week}`;
+  const weeksToUse = orderedWeeks.filter(
+    (weekInfo) => weekInfo.key === startWeekKey || weekInfo.weekdayCount >= 2
+  );
+
+  if (weeksToUse.length === 1) {
+    return `KW ${weeksToUse[0].week}`;
+  }
+  return `KW ${weeksToUse[0].week}-${weeksToUse[weeksToUse.length - 1].week}`;
+}
+
+function buildVacationCopyText(memberName, startDate, endDate, vacationDates) {
   const safeName = memberName?.trim() || "Unbekannt";
-  return `${safeName}: ${formatVacationRangeDate(startDate)} bis ${formatVacationRangeDate(endDate)}, ${formatWeekRangeLabel(startDate, endDate)}`;
+  return `${safeName}: ${formatVacationRangeDate(startDate)} bis ${formatVacationRangeDate(endDate)}, ${formatWeekRangeLabel(vacationDates, startDate)}`;
 }
 
 function clearSchoolHolidays() {
@@ -1621,16 +1647,55 @@ function getVacationBlock(memberIndex, day, monthData) {
   return { start, end };
 }
 
+function getMemberStatusForDate(memberIndex, date) {
+  const monthData = getMonthData(date.getFullYear(), date.getMonth());
+  return monthData.days?.[memberIndex]?.[date.getDate()] || "";
+}
+
+function getVacationBlockRange(memberIndex, referenceDate) {
+  const startDate = new Date(referenceDate);
+  const endDate = new Date(referenceDate);
+
+  while (true) {
+    const previousDate = new Date(startDate);
+    previousDate.setDate(previousDate.getDate() - 1);
+    if (!isVacationStatus(getMemberStatusForDate(memberIndex, previousDate))) {
+      break;
+    }
+    startDate.setDate(startDate.getDate() - 1);
+  }
+
+  while (true) {
+    const nextDate = new Date(endDate);
+    nextDate.setDate(nextDate.getDate() + 1);
+    if (!isVacationStatus(getMemberStatusForDate(memberIndex, nextDate))) {
+      break;
+    }
+    endDate.setDate(endDate.getDate() + 1);
+  }
+
+  return { startDate, endDate };
+}
+
+function buildDateRange(startDate, endDate) {
+  const dates = [];
+  const currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    dates.push(new Date(currentDate));
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  return dates;
+}
+
 async function copyVacationBlock(memberIndex, dayInfo) {
-  const targetMonthData = getMonthData(dayInfo.year, dayInfo.monthIndex);
-  if (!isVacationStatus(targetMonthData.days?.[memberIndex]?.[dayInfo.day])) {
+  const selectedDate = new Date(dayInfo.year, dayInfo.monthIndex, dayInfo.day);
+  if (!isVacationStatus(getMemberStatusForDate(memberIndex, selectedDate))) {
     return;
   }
-  const { start, end } = getVacationBlock(memberIndex, dayInfo.day, targetMonthData);
+  const { startDate, endDate } = getVacationBlockRange(memberIndex, selectedDate);
+  const vacationDates = buildDateRange(startDate, endDate);
   const memberName = data.members[memberIndex]?.name;
-  const startDate = new Date(dayInfo.year, dayInfo.monthIndex, start);
-  const endDate = new Date(dayInfo.year, dayInfo.monthIndex, end);
-  const copyText = buildVacationCopyText(memberName, startDate, endDate);
+  const copyText = buildVacationCopyText(memberName, startDate, endDate, vacationDates);
   await copyShareUrl(copyText);
 }
 
