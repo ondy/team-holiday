@@ -1323,7 +1323,12 @@ function buildTable(
           });
           copyButton.addEventListener("click", (event) => {
             event.stopPropagation();
-            void copyVacationBlock(index, dayInfo);
+            void copyVacationBlock(index, dayInfo).then(() => {
+              copyButton.classList.add("is-copied");
+              window.setTimeout(() => {
+                copyButton.classList.remove("is-copied");
+              }, 550);
+            });
           });
           td.appendChild(copyButton);
         }
