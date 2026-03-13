@@ -40,6 +40,10 @@ let justOpenedMenu = false;
 let resizeTimer = null;
 const MAX_SECOND_ROW_OVERFLOW_COLUMNS = 2;
 const MIN_SQUEEZED_DAY_CELL_WIDTH = MIN_DAY_CELL_WIDTH - 2;
+const MAX_SHARE_HASH_LENGTH = 120000;
+const MAX_SHARE_COMPRESSED_BYTES = 1024 * 512;
+const MAX_SHARE_DECOMPRESSED_BYTES = 1024 * 1024 * 5;
+const MAX_IMPORT_FILE_BYTES = 1024 * 1024 * 5;
 
 function refreshCurrentDate() {
   const now = new Date();
@@ -178,10 +182,19 @@ function base64FromBytes(bytes) {
 }
 
 function bytesFromBase64(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error("Invalid share payload");
+  }
+  if (value.length > MAX_SHARE_HASH_LENGTH) {
+    throw new Error("Share payload too large");
+  }
   const binary = atob(value);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
+  }
+  if (bytes.length > MAX_SHARE_COMPRESSED_BYTES) {
+    throw new Error("Compressed share payload too large");
   }
   return bytes;
 }
@@ -202,6 +215,9 @@ async function decompressToString(bytes) {
   }
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
   const buffer = await new Response(stream).arrayBuffer();
+  if (buffer.byteLength > MAX_SHARE_DECOMPRESSED_BYTES) {
+    throw new Error("Share payload exceeds safe size");
+  }
   return new TextDecoder().decode(buffer);
 }
 
@@ -386,6 +402,10 @@ async function importPayload(parsed) {
 
 async function handleImportFile(file) {
   if (!file) {
+    return;
+  }
+  if (file.size > MAX_IMPORT_FILE_BYTES) {
+    window.alert("Die Datei ist zu groß. Bitte maximal 5 MB importieren.");
     return;
   }
   try {
